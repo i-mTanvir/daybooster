@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/glow_card.dart';
+import 'widgets/add_task_sheet.dart';
 
 class ScheduleBlock {
   final String id;
@@ -125,6 +126,31 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             ),
           ),
         ],
+      ),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: context.themeColors.neonGreen.withValues(alpha: 0.3),
+              blurRadius: 16,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: FloatingActionButton(
+          onPressed: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (context) => const AddTaskSheet(),
+            );
+          },
+          backgroundColor: context.themeColors.neonGreen,
+          foregroundColor: Colors.black,
+          child: const Icon(Icons.add),
+        ),
       ),
     );
   }
