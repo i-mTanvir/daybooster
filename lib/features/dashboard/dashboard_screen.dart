@@ -8,6 +8,7 @@ import 'package:confetti/confetti.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/models/task_entry.dart';
 import '../../core/widgets/painters.dart';
+import '../profile/profile_screen.dart';
 import '../../core/widgets/glow_card.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -230,24 +231,41 @@ class _DashboardScreenState extends State<DashboardScreen>
                   break;
               }
 
-              return IconButton(
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  switch (themeType) {
-                    case AppThemeType.dark:
-                      AppTheme.themeNotifier.value = AppThemeType.cream;
-                      break;
-                    case AppThemeType.cream:
-                      AppTheme.themeNotifier.value = AppThemeType.lime;
-                      break;
-                    case AppThemeType.lime:
-                      AppTheme.themeNotifier.value = AppThemeType.dark;
-                      break;
-                  }
-                },
-                icon: Icon(iconData, color: iconColor, size: 22),
-                tooltip: 'Toggle Theme',
+              return Row(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      switch (themeType) {
+                        case AppThemeType.dark:
+                          AppTheme.themeNotifier.value = AppThemeType.cream;
+                          break;
+                        case AppThemeType.cream:
+                          AppTheme.themeNotifier.value = AppThemeType.lime;
+                          break;
+                        case AppThemeType.lime:
+                          AppTheme.themeNotifier.value = AppThemeType.dark;
+                          break;
+                      }
+                    },
+                    icon: Icon(iconData, color: iconColor, size: 22),
+                    tooltip: 'Toggle Theme',
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                      );
+                    },
+                    icon: Icon(Icons.person_outline, color: context.themeColors.textPrimary, size: 22),
+                    tooltip: 'Architect Profile',
+                  ),
+                ],
               );
+
             },
           ),
         ],
