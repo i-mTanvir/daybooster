@@ -137,3 +137,4 @@ class ArcScorePainter extends CustomPainter {
   bool shouldRepaint(ArcScorePainter old) =>
       old.percentage != percentage || old.color != color;
 }
+

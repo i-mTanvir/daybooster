@@ -32,11 +32,18 @@ class DayBoosterApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'DayBooster — The Architect Protocol',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
-      home: const AppRouter(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: AppTheme.themeNotifier,
+      builder: (context, themeMode, _) {
+        return MaterialApp(
+          title: 'DayBooster — The Architect Protocol',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeMode,
+          home: const AppRouter(),
+        );
+      },
     );
   }
 }
@@ -109,3 +116,4 @@ class _AppRouterState extends State<AppRouter> {
     return MainShell(architectName: _architectName);
   }
 }
+

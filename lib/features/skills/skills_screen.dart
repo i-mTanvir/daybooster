@@ -55,14 +55,14 @@ class _SkillsScreenState extends State<SkillsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.themeColors.bg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text(
           'SKILLS MATRIX',
           style: GoogleFonts.orbitron(
-            color: AppColors.gold,
+            color: context.themeColors.gold,
             fontSize: 18,
             fontWeight: FontWeight.w800,
             letterSpacing: 2,
@@ -92,7 +92,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
   Widget _buildSkillCard(SkillDay skill, int index, bool isToday) {
     return GlowCard(
       glowing: isToday,
-      glowColor: isToday ? AppColors.gold : AppColors.electricBlue,
+      glowColor: isToday ? context.themeColors.gold : context.themeColors.electricBlue,
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,9 +108,9 @@ class _SkillsScreenState extends State<SkillsScreen> {
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: AppColors.gold,
+                        color: context.themeColors.gold,
                         shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: AppColors.gold.withValues(alpha: 0.6), blurRadius: 4)],
+                        boxShadow: [BoxShadow(color: context.themeColors.gold.withValues(alpha: 0.6), blurRadius: 4)],
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -118,7 +118,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
                   Text(
                     skill.dayName.toUpperCase(),
                     style: GoogleFonts.orbitron(
-                      color: isToday ? AppColors.gold : AppColors.textSecondary,
+                      color: isToday ? context.themeColors.gold : context.themeColors.textSecondary,
                       fontSize: 11,
                       letterSpacing: 2,
                       fontWeight: FontWeight.w600,
@@ -131,7 +131,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
                 child: Icon(
                   Icons.edit_outlined,
                   size: 14,
-                  color: AppColors.textMuted,
+                  color: context.themeColors.textMuted,
                 ),
               ),
             ],
@@ -142,13 +142,13 @@ class _SkillsScreenState extends State<SkillsScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.psychology_outlined, color: AppColors.textPrimary, size: 18),
+              Icon(Icons.psychology_outlined, color: context.themeColors.textPrimary, size: 18),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   skill.currentSkill,
                   style: GoogleFonts.shareTechMono(
-                    color: AppColors.textPrimary,
+                    color: context.themeColors.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
@@ -163,9 +163,9 @@ class _SkillsScreenState extends State<SkillsScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: AppColors.bgCardLight,
+              color: context.themeColors.bgCardLight,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.borderSubtle),
+              border: Border.all(color: context.themeColors.borderSubtle),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,20 +173,20 @@ class _SkillsScreenState extends State<SkillsScreen> {
                 Text(
                   skill.prompt,
                   style: GoogleFonts.shareTechMono(
-                    color: AppColors.textMuted,
+                    color: context.themeColors.textMuted,
                     fontSize: 10,
                     fontStyle: FontStyle.italic,
                   ),
                 ),
                 TextField(
                   style: GoogleFonts.shareTechMono(
-                    color: AppColors.textPrimary,
+                    color: context.themeColors.textPrimary,
                     fontSize: 13,
                   ),
                   decoration: InputDecoration(
                     hintText: 'Tap to log your progress...',
                     hintStyle: GoogleFonts.shareTechMono(
-                      color: AppColors.textMuted.withValues(alpha: 0.5),
+                      color: context.themeColors.textMuted.withValues(alpha: 0.5),
                       fontSize: 13,
                     ),
                     isDense: true,
@@ -206,3 +206,4 @@ class _SkillsScreenState extends State<SkillsScreen> {
     ).animate(delay: Duration(milliseconds: 100 * index)).fadeIn().slideY(begin: 0.1);
   }
 }
+

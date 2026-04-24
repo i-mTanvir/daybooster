@@ -47,7 +47,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.themeColors.bg,
       body: Stack(
         children: [
           // Grid background
@@ -70,7 +70,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.neonPurple.withValues(alpha: 0.18),
+                    context.themeColors.neonPurple.withValues(alpha: 0.18),
                     Colors.transparent,
                   ],
                 ),
@@ -89,7 +89,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.electricBlue.withValues(alpha: 0.12),
+                    context.themeColors.electricBlue.withValues(alpha: 0.12),
                     Colors.transparent,
                   ],
                 ),
@@ -117,7 +117,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               fontSize: 64,
                               shadows: [
                                 Shadow(
-                                  color: AppColors.electricBlue.withValues(alpha: 0.5 + 0.3 * _pulseController.value),
+                                  color: context.themeColors.electricBlue.withValues(alpha: 0.5 + 0.3 * _pulseController.value),
                                   blurRadius: 30,
                                 ),
                               ],
@@ -130,7 +130,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         Text(
                           'DAYBOOSTER',
                           style: GoogleFonts.orbitron(
-                            color: AppColors.electricBlue,
+                            color: context.themeColors.electricBlue,
                             fontSize: 28,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 6,
@@ -142,7 +142,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         Text(
                           'THE ARCHITECT PROTOCOL',
                           style: GoogleFonts.orbitron(
-                            color: AppColors.neonPurple,
+                            color: context.themeColors.neonPurple,
                             fontSize: 11,
                             letterSpacing: 3,
                             fontWeight: FontWeight.w600,
@@ -156,7 +156,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
                   // Input card
                   GlowCard(
-                    glowColor: AppColors.electricBlue,
+                    glowColor: context.themeColors.electricBlue,
                     glowing: true,
                     padding: const EdgeInsets.all(24),
                     child: Column(
@@ -165,7 +165,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         Text(
                           'ARCHITECT IDENTIFICATION',
                           style: GoogleFonts.orbitron(
-                            color: AppColors.textSecondary,
+                            color: context.themeColors.textSecondary,
                             fontSize: 10,
                             letterSpacing: 2,
                             fontWeight: FontWeight.w600,
@@ -175,7 +175,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         Text(
                           'Enter your name to begin your legacy.',
                           style: GoogleFonts.shareTechMono(
-                            color: AppColors.textMuted,
+                            color: context.themeColors.textMuted,
                             fontSize: 12,
                           ),
                         ),
@@ -183,25 +183,25 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         TextField(
                           controller: _controller,
                           style: GoogleFonts.orbitron(
-                            color: AppColors.textPrimary,
+                            color: context.themeColors.textPrimary,
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                           ),
                           decoration: InputDecoration(
                             hintText: 'Your name...',
                             hintStyle: GoogleFonts.orbitron(
-                              color: AppColors.textMuted,
+                              color: context.themeColors.textMuted,
                               fontSize: 16,
                             ),
                             enabledBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(color: AppColors.borderSubtle),
+                              borderSide: BorderSide(color: context.themeColors.borderSubtle),
                             ),
                             focusedBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(color: AppColors.electricBlue, width: 2),
+                              borderSide: BorderSide(color: context.themeColors.electricBlue, width: 2),
                             ),
                             prefixText: 'ARCHITECT ',
                             prefixStyle: GoogleFonts.orbitron(
-                              color: AppColors.electricBlue,
+                              color: context.themeColors.electricBlue,
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
                             ),
@@ -222,13 +222,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                   borderRadius: BorderRadius.circular(12),
                                   gradient: LinearGradient(
                                     colors: [
-                                      AppColors.electricBlue,
-                                      AppColors.neonPurple,
+                                      context.themeColors.electricBlue,
+                                      context.themeColors.neonPurple,
                                     ],
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: AppColors.electricBlue.withValues(alpha: 0.3 + 0.2 * _pulseController.value),
+                                      color: context.themeColors.electricBlue.withValues(alpha: 0.3 + 0.2 * _pulseController.value),
                                       blurRadius: 20,
                                       spreadRadius: 2,
                                     ),
@@ -269,7 +269,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       '"You are not building a routine.\nYou are building a legacy."',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.shareTechMono(
-                        color: AppColors.textMuted,
+                        color: context.themeColors.textMuted,
                         fontSize: 11,
                         fontStyle: FontStyle.italic,
                       ),
@@ -284,3 +284,4 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 }
+

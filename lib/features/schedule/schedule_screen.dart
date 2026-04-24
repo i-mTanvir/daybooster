@@ -36,33 +36,39 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   @override
   void initState() {
     super.initState();
+    // Defer initialization to didChangeDependencies
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     _resetToDefault();
   }
 
   void _resetToDefault() {
     setState(() {
       _blocks = [
-        ScheduleBlock(id: '1', time: '05:30', name: 'Wake Up', duration: '—', glowColor: AppColors.borderSubtle),
-        ScheduleBlock(id: '2', time: '05:35', name: 'Fajr Namaz', duration: '25 min', glowColor: AppColors.gold),
-        ScheduleBlock(id: '3', time: '06:00', name: 'Workout', duration: '45 min', glowColor: AppColors.neonRed),
-        ScheduleBlock(id: '4', time: '06:45', name: 'Shower + Breakfast', duration: '30 min', glowColor: AppColors.electricBlue),
-        ScheduleBlock(id: '5', time: '07:15', name: 'Skill Block #1', duration: '2 hr', glowColor: AppColors.neonPurple),
-        ScheduleBlock(id: '6', time: '09:15', name: 'Short Break', duration: '15 min', glowColor: AppColors.borderSubtle),
-        ScheduleBlock(id: '7', time: '09:30', name: 'Skill Block #2', duration: '2 hr', glowColor: AppColors.neonPurple),
-        ScheduleBlock(id: '8', time: '11:30', name: 'Lunch', duration: '30 min', glowColor: AppColors.electricBlue),
-        ScheduleBlock(id: '9', time: '12:15', name: 'Dhuhr Namaz', duration: '30 min', glowColor: AppColors.gold),
-        ScheduleBlock(id: '10', time: '12:45', name: 'Project / Build Time', duration: '2 hr', glowColor: AppColors.neonGreen),
-        ScheduleBlock(id: '11', time: '14:45', name: 'Break', duration: '15 min', glowColor: AppColors.borderSubtle),
-        ScheduleBlock(id: '12', time: '15:00', name: 'Asr Namaz', duration: '30 min', glowColor: AppColors.gold),
-        ScheduleBlock(id: '13', time: '15:30', name: 'Skill Block #3 / Reading', duration: '1.5 hr', glowColor: AppColors.neonPurple),
-        ScheduleBlock(id: '14', time: '17:00', name: 'Family Time', duration: '30 min', glowColor: AppColors.electricBlue),
-        ScheduleBlock(id: '15', time: '17:30', name: 'Walk / Rest', duration: '30 min', glowColor: AppColors.borderSubtle),
-        ScheduleBlock(id: '16', time: '18:15', name: 'Maghrib Namaz', duration: '30 min', glowColor: AppColors.gold),
-        ScheduleBlock(id: '17', time: '18:45', name: 'Dinner', duration: '30 min', glowColor: AppColors.electricBlue),
-        ScheduleBlock(id: '18', time: '19:15', name: 'Isha Namaz', duration: '30 min', glowColor: AppColors.gold),
-        ScheduleBlock(id: '19', time: '19:45', name: 'Review + Journal + Next Day', duration: '1.25 hr', glowColor: AppColors.neonGreen),
-        ScheduleBlock(id: '20', time: '21:00', name: 'Free Zone / Devices', duration: '1 hr', glowColor: AppColors.neonYellow),
-        ScheduleBlock(id: '21', time: '22:00', name: 'Sleep', duration: '—', glowColor: AppColors.borderSubtle),
+        ScheduleBlock(id: '1', time: '05:30', name: 'Wake Up', duration: '—', glowColor: context.themeColors.borderSubtle),
+        ScheduleBlock(id: '2', time: '05:35', name: 'Fajr Namaz', duration: '25 min', glowColor: context.themeColors.gold),
+        ScheduleBlock(id: '3', time: '06:00', name: 'Workout', duration: '45 min', glowColor: context.themeColors.neonRed),
+        ScheduleBlock(id: '4', time: '06:45', name: 'Shower + Breakfast', duration: '30 min', glowColor: context.themeColors.electricBlue),
+        ScheduleBlock(id: '5', time: '07:15', name: 'Skill Block #1', duration: '2 hr', glowColor: context.themeColors.neonPurple),
+        ScheduleBlock(id: '6', time: '09:15', name: 'Short Break', duration: '15 min', glowColor: context.themeColors.borderSubtle),
+        ScheduleBlock(id: '7', time: '09:30', name: 'Skill Block #2', duration: '2 hr', glowColor: context.themeColors.neonPurple),
+        ScheduleBlock(id: '8', time: '11:30', name: 'Lunch', duration: '30 min', glowColor: context.themeColors.electricBlue),
+        ScheduleBlock(id: '9', time: '12:15', name: 'Dhuhr Namaz', duration: '30 min', glowColor: context.themeColors.gold),
+        ScheduleBlock(id: '10', time: '12:45', name: 'Project / Build Time', duration: '2 hr', glowColor: context.themeColors.neonGreen),
+        ScheduleBlock(id: '11', time: '14:45', name: 'Break', duration: '15 min', glowColor: context.themeColors.borderSubtle),
+        ScheduleBlock(id: '12', time: '15:00', name: 'Asr Namaz', duration: '30 min', glowColor: context.themeColors.gold),
+        ScheduleBlock(id: '13', time: '15:30', name: 'Skill Block #3 / Reading', duration: '1.5 hr', glowColor: context.themeColors.neonPurple),
+        ScheduleBlock(id: '14', time: '17:00', name: 'Family Time', duration: '30 min', glowColor: context.themeColors.electricBlue),
+        ScheduleBlock(id: '15', time: '17:30', name: 'Walk / Rest', duration: '30 min', glowColor: context.themeColors.borderSubtle),
+        ScheduleBlock(id: '16', time: '18:15', name: 'Maghrib Namaz', duration: '30 min', glowColor: context.themeColors.gold),
+        ScheduleBlock(id: '17', time: '18:45', name: 'Dinner', duration: '30 min', glowColor: context.themeColors.electricBlue),
+        ScheduleBlock(id: '18', time: '19:15', name: 'Isha Namaz', duration: '30 min', glowColor: context.themeColors.gold),
+        ScheduleBlock(id: '19', time: '19:45', name: 'Review + Journal + Next Day', duration: '1.25 hr', glowColor: context.themeColors.neonGreen),
+        ScheduleBlock(id: '20', time: '21:00', name: 'Free Zone / Devices', duration: '1 hr', glowColor: context.themeColors.neonYellow),
+        ScheduleBlock(id: '21', time: '22:00', name: 'Sleep', duration: '—', glowColor: context.themeColors.borderSubtle),
       ];
     });
   }
@@ -76,14 +82,14 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.themeColors.bg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text(
           'PROTOCOL SCHEDULE',
           style: GoogleFonts.orbitron(
-            color: AppColors.electricBlue,
+            color: context.themeColors.electricBlue,
             fontSize: 18,
             fontWeight: FontWeight.w800,
             letterSpacing: 2,
@@ -93,11 +99,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         actions: [
           TextButton.icon(
             onPressed: _resetToDefault,
-            icon: const Icon(Icons.restore, color: AppColors.neonRed, size: 16),
+            icon: Icon(Icons.restore, color: context.themeColors.neonRed, size: 16),
             label: Text(
               'RESET',
               style: GoogleFonts.orbitron(
-                color: AppColors.neonRed,
+                color: context.themeColors.neonRed,
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
               ),
@@ -146,10 +152,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 4),
               width: 56,
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.electricBlue.withValues(alpha: 0.15) : AppColors.bgCard,
+                color: isSelected ? context.themeColors.electricBlue.withValues(alpha: 0.15) : context.themeColors.bgCard,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: isSelected ? AppColors.electricBlue : AppColors.borderSubtle,
+                  color: isSelected ? context.themeColors.electricBlue : context.themeColors.borderSubtle,
                   width: isSelected ? 2 : 1,
                 ),
               ),
@@ -157,7 +163,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 child: Text(
                   _days[index],
                   style: GoogleFonts.orbitron(
-                    color: isSelected ? AppColors.electricBlue : AppColors.textMuted,
+                    color: isSelected ? context.themeColors.electricBlue : context.themeColors.textMuted,
                     fontSize: 11,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
@@ -185,7 +191,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   Text(
                     block.time,
                     style: GoogleFonts.shareTechMono(
-                      color: AppColors.textSecondary,
+                      color: context.themeColors.textSecondary,
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                     ),
@@ -230,7 +236,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                             Text(
                               block.name.toUpperCase(),
                               style: GoogleFonts.orbitron(
-                                color: AppColors.textPrimary,
+                                color: context.themeColors.textPrimary,
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -239,7 +245,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                             Text(
                               block.duration == '—' ? 'Event' : 'Duration: ${block.duration}',
                               style: GoogleFonts.shareTechMono(
-                                color: AppColors.textMuted,
+                                color: context.themeColors.textMuted,
                                 fontSize: 10,
                               ),
                             ),
@@ -249,7 +255,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                       Icon(
                         Icons.edit_outlined,
                         size: 14,
-                        color: AppColors.textMuted.withValues(alpha: 0.5),
+                        color: context.themeColors.textMuted.withValues(alpha: 0.5),
                       ),
                     ],
                   ),
@@ -262,3 +268,4 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     );
   }
 }
+

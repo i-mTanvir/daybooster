@@ -97,3 +97,4 @@ List<TaskEntry> buildDefaultTasks() {
     TaskEntry(id: 'journal', name: 'Daily Review / Journal', emoji: '📝', type: TaskType.binary),
   ];
 }
+

@@ -3,7 +3,7 @@ import '../../core/theme/app_theme.dart';
 
 class GlowCard extends StatelessWidget {
   final Widget child;
-  final Color glowColor;
+  final Color? glowColor;
   final EdgeInsetsGeometry? padding;
   final double borderRadius;
   final bool glowing;
@@ -11,7 +11,7 @@ class GlowCard extends StatelessWidget {
   const GlowCard({
     super.key,
     required this.child,
-    this.glowColor = AppColors.electricBlue,
+    this.glowColor,
     this.padding,
     this.borderRadius = 16,
     this.glowing = false,
@@ -19,6 +19,7 @@ class GlowCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final effectiveGlowColor = glowColor ?? context.themeColors.electricBlue;
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(borderRadius),
@@ -26,17 +27,17 @@ class GlowCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.bgCardLight,
-            AppColors.bgCard,
+            context.themeColors.bgCardLight,
+            context.themeColors.bgCard,
           ],
         ),
         border: Border.all(
-          color: glowColor.withValues(alpha: glowing ? 0.45 : 0.22),
+          color: effectiveGlowColor.withValues(alpha: glowing ? 0.45 : 0.22),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: glowColor.withValues(alpha: glowing ? 0.25 : 0.10),
+            color: effectiveGlowColor.withValues(alpha: glowing ? 0.25 : 0.10),
             blurRadius: glowing ? 20 : 10,
             spreadRadius: glowing ? 2 : 0,
           ),
@@ -51,19 +52,20 @@ class GlowCard extends StatelessWidget {
 class GlowText extends StatelessWidget {
   final String text;
   final TextStyle? style;
-  final Color glowColor;
+  final Color? glowColor;
   final double glowRadius;
 
   const GlowText({
     super.key,
     required this.text,
     this.style,
-    this.glowColor = AppColors.electricBlue,
+    this.glowColor,
     this.glowRadius = 8,
   });
 
   @override
   Widget build(BuildContext context) {
+    final effectiveGlowColor = glowColor ?? context.themeColors.electricBlue;
     return Stack(
       children: [
         Text(
@@ -72,7 +74,7 @@ class GlowText extends StatelessWidget {
             color: Colors.transparent,
             shadows: [
               Shadow(
-                color: glowColor.withValues(alpha: 0.7),
+                color: effectiveGlowColor.withValues(alpha: 0.7),
                 blurRadius: glowRadius * 2,
               ),
             ],
@@ -83,3 +85,4 @@ class GlowText extends StatelessWidget {
     );
   }
 }
+

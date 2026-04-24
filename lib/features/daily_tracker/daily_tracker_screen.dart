@@ -42,14 +42,14 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.themeColors.bg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text(
           'DAILY TRACKER',
           style: GoogleFonts.orbitron(
-            color: AppColors.neonGreen,
+            color: context.themeColors.neonGreen,
             fontSize: 18,
             fontWeight: FontWeight.w800,
             letterSpacing: 2,
@@ -58,7 +58,7 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
         centerTitle: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: AppColors.textMuted),
+            icon: Icon(Icons.refresh, color: context.themeColors.textMuted),
             onPressed: () {
               // Reset today's inputs
               setState(() {
@@ -86,9 +86,9 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
 
   Widget _buildTaskCard(TaskEntry task, int index) {
     final pct = task.percentage;
-    final color = AppColors.getPerformanceColor(pct);
+    final color = AppColors.getPerformanceColor(pct, context.themeColors);
     final hasData = task.actualMinutes != null || task.done != null;
-    final cardGlowColor = hasData ? color : AppColors.borderSubtle;
+    final cardGlowColor = hasData ? color : context.themeColors.borderSubtle;
 
     return GlowCard(
       glowing: hasData && pct >= 90,
@@ -108,7 +108,7 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
                     Text(
                       task.name.toUpperCase(),
                       style: GoogleFonts.orbitron(
-                        color: AppColors.textPrimary,
+                        color: context.themeColors.textPrimary,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1,
@@ -120,7 +120,7 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
                             ? 'Max: 60 min'
                             : 'Target: ${task.targetMinutes} min',
                         style: GoogleFonts.shareTechMono(
-                          color: AppColors.textMuted,
+                          color: context.themeColors.textMuted,
                           fontSize: 10,
                         ),
                       ),
@@ -162,7 +162,7 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
             child: _buildBinaryButton(
               title: 'MISSED',
               isSelected: task.done == false,
-              color: AppColors.neonRed,
+              color: context.themeColors.neonRed,
               onTap: () => _updateBinaryTask(index, false),
             ),
           ),
@@ -171,7 +171,7 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
             child: _buildBinaryButton(
               title: 'DONE',
               isSelected: isDone,
-              color: AppColors.neonGreen,
+              color: context.themeColors.neonGreen,
               onTap: () => _updateBinaryTask(index, true),
             ),
           ),
@@ -193,14 +193,14 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
               Text(
                 'LOG MINUTES:',
                 style: GoogleFonts.shareTechMono(
-                  color: AppColors.textSecondary,
+                  color: context.themeColors.textSecondary,
                   fontSize: 10,
                 ),
               ),
               Text(
                 '${currentVal.toInt()}m',
                 style: GoogleFonts.shareTechMono(
-                  color: AppColors.electricBlue,
+                  color: context.themeColors.electricBlue,
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
@@ -209,10 +209,10 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
           ),
           SliderTheme(
             data: SliderThemeData(
-              activeTrackColor: AppColors.electricBlue,
-              inactiveTrackColor: AppColors.bgCardLight,
-              thumbColor: AppColors.electricBlue,
-              overlayColor: AppColors.electricBlue.withValues(alpha: 0.2),
+              activeTrackColor: context.themeColors.electricBlue,
+              inactiveTrackColor: context.themeColors.bgCardLight,
+              thumbColor: context.themeColors.electricBlue,
+              overlayColor: context.themeColors.electricBlue.withValues(alpha: 0.2),
               trackHeight: 6,
             ),
             child: Slider(
@@ -240,10 +240,10 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.15) : AppColors.bgCardLight,
+          color: isSelected ? color.withValues(alpha: 0.15) : context.themeColors.bgCardLight,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? color : AppColors.borderSubtle,
+            color: isSelected ? color : context.themeColors.borderSubtle,
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -251,7 +251,7 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
           child: Text(
             title,
             style: GoogleFonts.orbitron(
-              color: isSelected ? color : AppColors.textMuted,
+              color: isSelected ? color : context.themeColors.textMuted,
               fontSize: 12,
               fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
               letterSpacing: 1,
@@ -262,3 +262,4 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
     );
   }
 }
+

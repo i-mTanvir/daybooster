@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -84,7 +85,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   Widget build(BuildContext context) {
     final score = _todayData.dayScore;
-    final scoreColor = AppColors.getPerformanceColor(score);
+    final scoreColor = AppColors.getPerformanceColor(score, context.themeColors);
     final scoreLabel = AppColors.getPerformanceLabel(score);
     final now = DateTime.now();
     final dayName = DateFormat('EEEE').format(now);
@@ -93,7 +94,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     final totalTasks = _todayData.tasks.length;
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.themeColors.bg,
       body: Stack(
         children: [
           // Animated cyberpunk grid background
@@ -116,7 +117,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.neonPurple.withValues(alpha: 0.15),
+                    context.themeColors.neonPurple.withValues(alpha: 0.15),
                     Colors.transparent,
                   ],
                 ),
@@ -168,10 +169,10 @@ class _DashboardScreenState extends State<DashboardScreen>
               emissionFrequency: 0.05,
               numberOfParticles: 30,
               gravity: 0.2,
-              colors: const [
-                AppColors.gold,
-                AppColors.electricBlue,
-                AppColors.neonPurple,
+              colors: [
+                context.themeColors.gold,
+                context.themeColors.electricBlue,
+                context.themeColors.neonPurple,
               ],
             ),
           ),
@@ -192,7 +193,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               Text(
                 dayName.toUpperCase(),
                 style: GoogleFonts.orbitron(
-                  color: AppColors.electricBlue,
+                  color: context.themeColors.electricBlue,
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 2.5,
@@ -202,45 +203,30 @@ class _DashboardScreenState extends State<DashboardScreen>
               Text(
                 dateStr,
                 style: GoogleFonts.shareTechMono(
-                  color: AppColors.textSecondary,
+                  color: context.themeColors.textSecondary,
                   fontSize: 12,
                 ),
               ),
             ],
           ),
-          AnimatedBuilder(
-            animation: _pulseController,
-            builder: (_, __) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: AppColors.electricBlue.withValues(alpha: 0.3 + 0.2 * _pulseController.value),
-                  width: 1,
+          ValueListenableBuilder<ThemeMode>(
+            valueListenable: AppTheme.themeNotifier,
+            builder: (context, themeMode, _) {
+              final isDark = themeMode == ThemeMode.dark;
+              return IconButton(
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  AppTheme.themeNotifier.value =
+                      isDark ? ThemeMode.light : ThemeMode.dark;
+                },
+                icon: Icon(
+                  isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                  color: isDark ? context.themeColors.gold : context.themeColors.neonPurple,
+                  size: 22,
                 ),
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.electricBlue.withValues(alpha: 0.08),
-                    AppColors.neonPurple.withValues(alpha: 0.08),
-                  ],
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.bolt, color: AppColors.gold, size: 14),
-                  const SizedBox(width: 4),
-                  Text(
-                    'LIVE',
-                    style: GoogleFonts.orbitron(
-                      color: AppColors.gold,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+                tooltip: 'Toggle Theme',
+              );
+            },
           ),
         ],
       ),
@@ -256,7 +242,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           Text(
             'ARCHITECT ${widget.architectName.toUpperCase()}',
             style: GoogleFonts.orbitron(
-              color: AppColors.textSecondary,
+              color: context.themeColors.textSecondary,
               fontSize: 11,
               fontWeight: FontWeight.w500,
               letterSpacing: 3,
@@ -265,10 +251,10 @@ class _DashboardScreenState extends State<DashboardScreen>
           const SizedBox(height: 6),
           GlowText(
             text: 'The System\nAwaits.',
-            glowColor: AppColors.electricBlue,
+            glowColor: context.themeColors.electricBlue,
             glowRadius: 12,
             style: GoogleFonts.orbitron(
-              color: AppColors.textPrimary,
+              color: context.themeColors.textPrimary,
               fontSize: 28,
               fontWeight: FontWeight.w900,
               height: 1.1,
@@ -279,18 +265,18 @@ class _DashboardScreenState extends State<DashboardScreen>
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10),
-              color: AppColors.bgCardLight,
-              border: Border.all(color: AppColors.borderSubtle),
+              color: context.themeColors.bgCardLight,
+              border: Border.all(color: context.themeColors.borderSubtle),
             ),
             child: Row(
               children: [
-                Icon(Icons.format_quote, color: AppColors.neonPurple, size: 14),
+                Icon(Icons.format_quote, color: context.themeColors.neonPurple, size: 14),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     _quote,
                     style: GoogleFonts.shareTechMono(
-                      color: AppColors.textSecondary,
+                      color: context.themeColors.textSecondary,
                       fontSize: 11,
                       fontStyle: FontStyle.italic,
                     ),
@@ -319,7 +305,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 Text(
                   'DAY SCORE',
                   style: GoogleFonts.orbitron(
-                    color: AppColors.textSecondary,
+                    color: context.themeColors.textSecondary,
                     fontSize: 11,
                     letterSpacing: 2.5,
                     fontWeight: FontWeight.w600,
@@ -380,7 +366,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                           Text(
                             'TODAY',
                             style: GoogleFonts.orbitron(
-                              color: AppColors.textMuted,
+                              color: context.themeColors.textMuted,
                               fontSize: 10,
                               letterSpacing: 3,
                             ),
@@ -396,13 +382,13 @@ class _DashboardScreenState extends State<DashboardScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildScaleLegendDot(AppColors.perfCritical, '0–39'),
-                _buildScaleLegendDot(AppColors.perfWeak, '40–59'),
-                _buildScaleLegendDot(AppColors.perfBelowTarget, '60–79'),
-                _buildScaleLegendDot(AppColors.perfAlmost, '80–89'),
-                _buildScaleLegendDot(AppColors.perfTarget, '90–110'),
-                _buildScaleLegendDot(AppColors.perfOverdrive, '111–130'),
-                _buildScaleLegendDot(AppColors.perfLegendary, '131+'),
+                _buildScaleLegendDot(context.themeColors.perfCritical, '0–39'),
+                _buildScaleLegendDot(context.themeColors.perfWeak, '40–59'),
+                _buildScaleLegendDot(context.themeColors.perfBelowTarget, '60–79'),
+                _buildScaleLegendDot(context.themeColors.perfAlmost, '80–89'),
+                _buildScaleLegendDot(context.themeColors.perfTarget, '90–110'),
+                _buildScaleLegendDot(context.themeColors.perfOverdrive, '111–130'),
+                _buildScaleLegendDot(context.themeColors.perfLegendary, '131+'),
               ],
             ),
           ],
@@ -446,30 +432,30 @@ class _DashboardScreenState extends State<DashboardScreen>
           Expanded(
             child: _buildStatCard(
               icon: Icons.check_circle_outline,
-              iconColor: AppColors.neonGreen,
+              iconColor: context.themeColors.neonGreen,
               value: '$completed/$total',
               label: 'TASKS DONE',
-              glowColor: AppColors.neonGreen,
+              glowColor: context.themeColors.neonGreen,
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: _buildStatCard(
               icon: Icons.mosque_outlined,
-              iconColor: AppColors.gold,
+              iconColor: context.themeColors.gold,
               value: '$prayersDone/5',
               label: 'PRAYERS',
-              glowColor: prayersDone == 5 ? AppColors.gold : AppColors.textMuted,
+              glowColor: prayersDone == 5 ? context.themeColors.gold : context.themeColors.textMuted,
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: _buildStatCard(
               icon: Icons.timer_outlined,
-              iconColor: AppColors.electricBlue,
+              iconColor: context.themeColors.electricBlue,
               value: '${skillMinutes.toInt()}m',
               label: 'FOCUS TIME',
-              glowColor: AppColors.electricBlue,
+              glowColor: context.themeColors.electricBlue,
             ),
           ),
         ],
@@ -505,7 +491,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           Text(
             label,
             style: GoogleFonts.orbitron(
-              color: AppColors.textMuted,
+              color: context.themeColors.textMuted,
               fontSize: 8,
               letterSpacing: 1.5,
               fontWeight: FontWeight.w600,
@@ -531,7 +517,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: GlowCard(
-        glowColor: allDone ? AppColors.gold : AppColors.neonPurple,
+        glowColor: allDone ? context.themeColors.gold : context.themeColors.neonPurple,
         glowing: allDone,
         child: Column(
           children: [
@@ -545,7 +531,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     Text(
                       'DAILY PRAYERS',
                       style: GoogleFonts.orbitron(
-                        color: AppColors.textPrimary,
+                        color: context.themeColors.textPrimary,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.5,
@@ -556,10 +542,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                 if (allDone)
                   GlowText(
                     text: '✦ COMPLETE',
-                    glowColor: AppColors.gold,
+                    glowColor: context.themeColors.gold,
                     glowRadius: 8,
                     style: GoogleFonts.orbitron(
-                      color: AppColors.gold,
+                      color: context.themeColors.gold,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.5,
@@ -587,7 +573,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
           ],
         ),
-      ).animate(target: allDone ? 1 : 0).shimmer(duration: 2000.ms, color: AppColors.gold.withValues(alpha: 0.3)),
+      ).animate(target: allDone ? 1 : 0).shimmer(duration: 2000.ms, color: context.themeColors.gold.withValues(alpha: 0.3)),
     ).animate().fadeIn(delay: 700.ms, duration: 600.ms).slideY(begin: 0.2, end: 0);
   }
 
@@ -604,18 +590,18 @@ class _DashboardScreenState extends State<DashboardScreen>
           height: 44,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: done ? AppColors.gold.withValues(alpha: 0.15) : AppColors.bgCardLight,
+            color: done ? context.themeColors.gold.withValues(alpha: 0.15) : context.themeColors.bgCardLight,
             border: Border.all(
-              color: done ? AppColors.gold : AppColors.borderSubtle,
+              color: done ? context.themeColors.gold : context.themeColors.borderSubtle,
               width: done ? 2 : 1,
             ),
             boxShadow: done
-                ? [BoxShadow(color: AppColors.gold.withValues(alpha: 0.4), blurRadius: 12)]
+                ? [BoxShadow(color: context.themeColors.gold.withValues(alpha: 0.4), blurRadius: 12)]
                 : [],
           ),
           child: Center(
             child: done
-                ? Icon(Icons.star, color: AppColors.gold, size: 18)
+                ? Icon(Icons.star, color: context.themeColors.gold, size: 18)
                 : Text('🕌', style: const TextStyle(fontSize: 18)),
           ),
         ),
@@ -623,7 +609,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         Text(
           name,
           style: GoogleFonts.orbitron(
-            color: done ? AppColors.gold : AppColors.textMuted,
+            color: done ? context.themeColors.gold : context.themeColors.textMuted,
             fontSize: 9,
             fontWeight: FontWeight.w600,
           ),
@@ -631,7 +617,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         Text(
           time,
           style: GoogleFonts.shareTechMono(
-            color: AppColors.textMuted,
+            color: context.themeColors.textMuted,
             fontSize: 9,
           ),
         ),
@@ -645,7 +631,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: GlowCard(
-        glowColor: AppColors.neonPurple,
+        glowColor: context.themeColors.neonPurple,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -655,7 +641,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 Text(
                   'TODAY\'S QUESTS',
                   style: GoogleFonts.orbitron(
-                    color: AppColors.textPrimary,
+                    color: context.themeColors.textPrimary,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.5,
@@ -664,7 +650,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 Text(
                   'VIEW ALL →',
                   style: GoogleFonts.orbitron(
-                    color: AppColors.electricBlue,
+                    color: context.themeColors.electricBlue,
                     fontSize: 9,
                     letterSpacing: 1.5,
                     fontWeight: FontWeight.w600,
@@ -686,7 +672,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Widget _buildTaskRow(TaskEntry task, int index) {
     final pct = task.percentage;
-    final color = AppColors.getPerformanceColor(pct > 0 ? pct : 0);
+    final color = AppColors.getPerformanceColor(pct > 0 ? pct : 0, context.themeColors);
     final hasData = task.actualMinutes != null || task.done != null;
 
     return Padding(
@@ -705,7 +691,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     Text(
                       task.name,
                       style: GoogleFonts.orbitron(
-                        color: AppColors.textPrimary,
+                        color: context.themeColors.textPrimary,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -713,7 +699,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     Text(
                       hasData ? '${pct.toStringAsFixed(0)}%' : '--',
                       style: GoogleFonts.shareTechMono(
-                        color: hasData ? color : AppColors.textMuted,
+                        color: hasData ? color : context.themeColors.textMuted,
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
@@ -725,9 +711,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
                     value: hasData ? (pct / 130).clamp(0.0, 1.0) : 0,
-                    backgroundColor: AppColors.bgCardMid,
+                    backgroundColor: context.themeColors.borderSubtle,
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      hasData ? color : AppColors.textMuted,
+                      hasData ? color : context.themeColors.textMuted,
                     ),
                     minHeight: 4,
                   ),
@@ -740,3 +726,4 @@ class _DashboardScreenState extends State<DashboardScreen>
     ).animate(delay: Duration(milliseconds: 900 + index * 80)).fadeIn(duration: 400.ms).slideX(begin: 0.1, end: 0);
   }
 }
+

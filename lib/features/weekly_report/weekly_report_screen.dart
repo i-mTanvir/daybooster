@@ -36,17 +36,17 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final character = VibeCharacter.getForScore(_weeklyAverage);
+    final character = VibeCharacter.getForScore(_weeklyAverage, context.themeColors);
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.themeColors.bg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text(
           'WEEKLY STATEMENT',
           style: GoogleFonts.orbitron(
-            color: AppColors.neonPurple,
+            color: context.themeColors.neonPurple,
             fontSize: 18,
             fontWeight: FontWeight.w800,
             letterSpacing: 2,
@@ -68,7 +68,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
             Text(
               'ACHIEVEMENTS',
               style: GoogleFonts.orbitron(
-                color: AppColors.textSecondary,
+                color: context.themeColors.textSecondary,
                 fontSize: 12,
                 letterSpacing: 2,
                 fontWeight: FontWeight.w600,
@@ -82,7 +82,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
             Text(
               'DAY-BY-DAY BREAKDOWN',
               style: GoogleFonts.orbitron(
-                color: AppColors.textSecondary,
+                color: context.themeColors.textSecondary,
                 fontSize: 12,
                 letterSpacing: 2,
                 fontWeight: FontWeight.w600,
@@ -110,7 +110,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
           Text(
             'WEEKLY AVERAGE',
             style: GoogleFonts.orbitron(
-              color: AppColors.textSecondary,
+              color: context.themeColors.textSecondary,
               fontSize: 12,
               letterSpacing: 3,
             ),
@@ -174,8 +174,8 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
   }
 
   Widget _buildBadge({required String icon, required String name, required bool earned, required int delayMs}) {
-    final color = earned ? AppColors.gold : AppColors.bgCardLight;
-    final borderColor = earned ? AppColors.gold : AppColors.borderSubtle;
+    final color = earned ? context.themeColors.gold : context.themeColors.bgCardLight;
+    final borderColor = earned ? context.themeColors.gold : context.themeColors.borderSubtle;
     
     return Container(
       decoration: BoxDecoration(
@@ -200,7 +200,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
             name.toUpperCase(),
             textAlign: TextAlign.center,
             style: GoogleFonts.orbitron(
-              color: earned ? AppColors.textPrimary : AppColors.textMuted,
+              color: earned ? context.themeColors.textPrimary : context.themeColors.textMuted,
               fontSize: 8,
               fontWeight: earned ? FontWeight.w700 : FontWeight.w500,
             ),
@@ -216,20 +216,20 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
         final index = entry.key;
         final day = entry.value;
         final score = day['score'] as double;
-        final color = AppColors.getPerformanceColor(score);
+        final color = AppColors.getPerformanceColor(score, context.themeColors);
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: ExpansionTile(
-            collapsedBackgroundColor: AppColors.bgCard,
-            backgroundColor: AppColors.bgCardLight,
+            collapsedBackgroundColor: context.themeColors.bgCard,
+            backgroundColor: context.themeColors.bgCardLight,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
               side: BorderSide(color: color.withValues(alpha: 0.3)),
             ),
             collapsedShape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: const BorderSide(color: AppColors.borderSubtle),
+              side: BorderSide(color: context.themeColors.borderSubtle),
             ),
             leading: Container(
               width: 12,
@@ -243,7 +243,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
             title: Text(
               day['day'],
               style: GoogleFonts.shareTechMono(
-                color: AppColors.textPrimary,
+                color: context.themeColors.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
               ),
@@ -262,7 +262,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
                 child: Text(
                   'Detailed task breakdown would appear here.\n(Connected to local database)',
                   style: GoogleFonts.shareTechMono(
-                    color: AppColors.textMuted,
+                    color: context.themeColors.textMuted,
                     fontSize: 12,
                     fontStyle: FontStyle.italic,
                   ),
@@ -296,7 +296,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
                 Text(
                   'WEEKLY VIBE CHARACTER',
                   style: GoogleFonts.orbitron(
-                    color: AppColors.textSecondary,
+                    color: context.themeColors.textSecondary,
                     fontSize: 10,
                     letterSpacing: 2,
                     fontWeight: FontWeight.w600,
@@ -318,7 +318,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
                 Text(
                   character.personality.toUpperCase(),
                   style: GoogleFonts.shareTechMono(
-                    color: AppColors.textPrimary,
+                    color: context.themeColors.textPrimary,
                     fontSize: 10,
                   ),
                 ),
@@ -335,7 +335,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
                 end: Alignment.bottomCenter,
                 colors: [
                   character.color.withValues(alpha: 0.05),
-                  AppColors.bg,
+                  context.themeColors.bg,
                 ],
               ),
             ),
@@ -369,7 +369,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
                 Text(
                   '"${character.message}"',
                   style: GoogleFonts.shareTechMono(
-                    color: AppColors.textPrimary,
+                    color: context.themeColors.textPrimary,
                     fontSize: 13,
                     height: 1.5,
                     fontStyle: FontStyle.italic,
@@ -383,3 +383,4 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
     ).animate(delay: const Duration(milliseconds: 1000)).fadeIn().slideY(begin: 0.2).shimmer(duration: 2500.ms, color: character.color.withValues(alpha: 0.4));
   }
 }
+

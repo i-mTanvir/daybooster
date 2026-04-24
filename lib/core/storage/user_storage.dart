@@ -20,3 +20,4 @@ class UserStorage {
     return prefs.getBool(_keyOnboarded) ?? false;
   }
 }
+

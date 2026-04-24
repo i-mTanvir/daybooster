@@ -64,7 +64,7 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
     ];
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.themeColors.bg,
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         transitionBuilder: (child, animation) => FadeTransition(
@@ -83,13 +83,13 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
   Widget _buildBottomNav() {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.bgCard,
+        color: context.themeColors.bgCard,
         border: Border(
-          top: BorderSide(color: AppColors.borderSubtle, width: 1),
+          top: BorderSide(color: context.themeColors.borderSubtle, width: 1),
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.electricBlue.withValues(alpha: 0.08),
+            color: context.themeColors.electricBlue.withValues(alpha: 0.08),
             blurRadius: 20,
             offset: const Offset(0, -5),
           ),
@@ -115,14 +115,14 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
                   decoration: isSelected
                       ? BoxDecoration(
                           borderRadius: BorderRadius.circular(12),
-                          color: AppColors.electricBlue.withValues(alpha: 0.1),
+                          color: context.themeColors.electricBlue.withValues(alpha: 0.1),
                           border: Border.all(
-                            color: AppColors.electricBlue.withValues(alpha: 0.3),
+                            color: context.themeColors.electricBlue.withValues(alpha: 0.3),
                             width: 1,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.electricBlue.withValues(alpha: 0.15),
+                              color: context.themeColors.electricBlue.withValues(alpha: 0.15),
                               blurRadius: 12,
                             ),
                           ],
@@ -138,8 +138,8 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
                           item.icon,
                           size: 22,
                           color: isSelected
-                              ? AppColors.electricBlue
-                              : AppColors.textMuted,
+                              ? context.themeColors.electricBlue
+                              : context.themeColors.textMuted,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -147,8 +147,8 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
                         duration: const Duration(milliseconds: 300),
                         style: GoogleFonts.orbitron(
                           color: isSelected
-                              ? AppColors.electricBlue
-                              : AppColors.textMuted,
+                              ? context.themeColors.electricBlue
+                              : context.themeColors.textMuted,
                           fontSize: 7,
                           fontWeight: isSelected
                               ? FontWeight.w700
@@ -174,3 +174,4 @@ class _NavItem {
   final String label;
   const _NavItem({required this.icon, required this.label});
 }
+
