@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glow_card.dart';
 
@@ -34,21 +35,10 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     super.dispose();
   }
 
-  void _saveTask() {
-    // ScaffoldMessenger.of(context).showSnackBar(
-    //   SnackBar(
-    //     content: Text('DIRECTIVE SAVED: ${_nameController.text}'),
-    //     backgroundColor: context.themeColors.electricBlue,
-    //   ),
-    // );
-    Navigator.pop(context);
-  }
+  bool _isSaving = false;
 
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-
-    final categories = [
+  List<Map<String, dynamic>> _getCategories(AppThemeColors colors) {
+    return [
       {'name': 'Gym', 'emoji': '🏋️', 'color': colors.neonRed},
       {'name': 'Read', 'emoji': '📖', 'color': colors.neonPurple},
       {'name': 'Code', 'emoji': '💻', 'color': colors.electricBlue},
@@ -56,6 +46,75 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       {'name': 'Prayer', 'emoji': '🕌', 'color': colors.neonGreen},
       {'name': 'Custom', 'emoji': '✨', 'color': colors.textPrimary},
     ];
+  }
+
+  Future<void> _saveTask() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('Protocol name required'), backgroundColor: context.themeColors.neonRed),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) throw Exception('No active session found.');
+
+      final categories = _getCategories(context.themeColors);
+      final selectedCategory = categories[_selectedCategoryIndex];
+      final colorValue = (selectedCategory['color'] as Color).toARGB32();
+      final colorHex = '#${colorValue.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+
+      final activeDaysInts = <int>[];
+      for (int i = 0; i < 7; i++) {
+        if (_selectedDays[i]) activeDaysInts.add(i);
+      }
+
+      final startTimeStr = '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}:00';
+
+      await Supabase.instance.client.from('directives').insert({
+        'user_id': user.id,
+        'name': name,
+        'category_emoji': selectedCategory['emoji'],
+        'color_hex': colorHex,
+        'start_time': startTimeStr,
+        'duration_minutes': _durationMinutes,
+        'active_days': activeDaysInts,
+        'tracking_type': _isProgress ? 'progress' : 'binary',
+        'target_metric': _isProgress ? int.tryParse(_targetController.text.trim()) : null,
+        'metric_name': _isProgress ? _metricController.text.trim() : null,
+        'is_focus_mode': _isFocusMode,
+      });
+
+      HapticFeedback.heavyImpact();
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('DIRECTIVE INITIALIZED', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+            backgroundColor: context.themeColors.neonGreen,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: context.themeColors.neonRed),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.themeColors;
+
+    final categories = _getCategories(colors);
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
@@ -425,7 +484,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _saveTask,
+                    onPressed: _isSaving ? null : _saveTask,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.neonGreen,
                       foregroundColor: Colors.black,
@@ -433,14 +492,16 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                       elevation: 8,
                       shadowColor: colors.neonGreen.withValues(alpha: 0.5),
                     ),
-                    child: Text(
-                      'INITIALIZE DIRECTIVE',
-                      style: GoogleFonts.orbitron(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 2,
-                      ),
-                    ),
+                    child: _isSaving
+                        ? const CircularProgressIndicator(color: Colors.black)
+                        : Text(
+                            'INITIALIZE DIRECTIVE',
+                            style: GoogleFonts.orbitron(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 2,
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 40),

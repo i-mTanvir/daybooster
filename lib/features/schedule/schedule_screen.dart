@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/glow_card.dart';
 import 'widgets/add_task_sheet.dart';
@@ -11,6 +12,9 @@ class ScheduleBlock {
   final String name;
   final String duration;
   final Color glowColor;
+  final String categoryEmoji;
+  final bool isFocusMode;
+  final List<int> activeDays;
 
   ScheduleBlock({
     required this.id,
@@ -18,6 +22,9 @@ class ScheduleBlock {
     required this.name,
     required this.duration,
     required this.glowColor,
+    required this.categoryEmoji,
+    required this.isFocusMode,
+    required this.activeDays,
   });
 }
 
@@ -30,48 +37,68 @@ class ScheduleScreen extends StatefulWidget {
 
 class _ScheduleScreenState extends State<ScheduleScreen> {
   int _selectedDayIndex = 0; // 0 = Sat, 6 = Fri (matching BD/ME week start)
-  late List<ScheduleBlock> _blocks;
+  List<ScheduleBlock> _allBlocks = [];
+  bool _isLoading = true;
 
   final List<String> _days = ['SAT', 'SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI'];
 
   @override
   void initState() {
     super.initState();
-    // Defer initialization to didChangeDependencies
+    _fetchDirectives();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _resetToDefault();
-  }
+  Future<void> _fetchDirectives() async {
+    setState(() => _isLoading = true);
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) throw Exception('No session found');
 
-  void _resetToDefault() {
-    setState(() {
-      _blocks = [
-        ScheduleBlock(id: '1', time: '05:30', name: 'Wake Up', duration: '—', glowColor: context.themeColors.borderSubtle),
-        ScheduleBlock(id: '2', time: '05:35', name: 'Fajr Namaz', duration: '25 min', glowColor: context.themeColors.gold),
-        ScheduleBlock(id: '3', time: '06:00', name: 'Workout', duration: '45 min', glowColor: context.themeColors.neonRed),
-        ScheduleBlock(id: '4', time: '06:45', name: 'Shower + Breakfast', duration: '30 min', glowColor: context.themeColors.electricBlue),
-        ScheduleBlock(id: '5', time: '07:15', name: 'Skill Block #1', duration: '2 hr', glowColor: context.themeColors.neonPurple),
-        ScheduleBlock(id: '6', time: '09:15', name: 'Short Break', duration: '15 min', glowColor: context.themeColors.borderSubtle),
-        ScheduleBlock(id: '7', time: '09:30', name: 'Skill Block #2', duration: '2 hr', glowColor: context.themeColors.neonPurple),
-        ScheduleBlock(id: '8', time: '11:30', name: 'Lunch', duration: '30 min', glowColor: context.themeColors.electricBlue),
-        ScheduleBlock(id: '9', time: '12:15', name: 'Dhuhr Namaz', duration: '30 min', glowColor: context.themeColors.gold),
-        ScheduleBlock(id: '10', time: '12:45', name: 'Project / Build Time', duration: '2 hr', glowColor: context.themeColors.neonGreen),
-        ScheduleBlock(id: '11', time: '14:45', name: 'Break', duration: '15 min', glowColor: context.themeColors.borderSubtle),
-        ScheduleBlock(id: '12', time: '15:00', name: 'Asr Namaz', duration: '30 min', glowColor: context.themeColors.gold),
-        ScheduleBlock(id: '13', time: '15:30', name: 'Skill Block #3 / Reading', duration: '1.5 hr', glowColor: context.themeColors.neonPurple),
-        ScheduleBlock(id: '14', time: '17:00', name: 'Family Time', duration: '30 min', glowColor: context.themeColors.electricBlue),
-        ScheduleBlock(id: '15', time: '17:30', name: 'Walk / Rest', duration: '30 min', glowColor: context.themeColors.borderSubtle),
-        ScheduleBlock(id: '16', time: '18:15', name: 'Maghrib Namaz', duration: '30 min', glowColor: context.themeColors.gold),
-        ScheduleBlock(id: '17', time: '18:45', name: 'Dinner', duration: '30 min', glowColor: context.themeColors.electricBlue),
-        ScheduleBlock(id: '18', time: '19:15', name: 'Isha Namaz', duration: '30 min', glowColor: context.themeColors.gold),
-        ScheduleBlock(id: '19', time: '19:45', name: 'Review + Journal + Next Day', duration: '1.25 hr', glowColor: context.themeColors.neonGreen),
-        ScheduleBlock(id: '20', time: '21:00', name: 'Free Zone / Devices', duration: '1 hr', glowColor: context.themeColors.neonYellow),
-        ScheduleBlock(id: '21', time: '22:00', name: 'Sleep', duration: '—', glowColor: context.themeColors.borderSubtle),
-      ];
-    });
+      final response = await Supabase.instance.client
+          .from('directives')
+          .select()
+          .eq('user_id', user.id);
+
+      final List<dynamic> data = response as List<dynamic>? ?? [];
+      final List<ScheduleBlock> loaded = data.map<ScheduleBlock>((dynamic rowMap) {
+        final row = rowMap as Map<String, dynamic>;
+        
+        // Parse time (e.g. '05:30:00' -> '05:30')
+        final startTimeStr = row['start_time'] as String?;
+        final timeStr = (startTimeStr != null && startTimeStr.length >= 5) 
+            ? startTimeStr.substring(0, 5) 
+            : '00:00';
+            
+        final colorHexStr = row['color_hex'] as String?;
+        final colorHex = (colorHexStr != null) ? colorHexStr.replaceAll('#', '') : 'FFFFFFFF';
+        final colorVal = int.tryParse(colorHex, radix: 16) ?? 0xFFFFFFFF;
+
+        return ScheduleBlock(
+          id: row['id']?.toString() ?? '',
+          time: timeStr,
+          name: row['name'] as String? ?? 'Unknown Protocol',
+          duration: '${row['duration_minutes'] ?? 0} min',
+          glowColor: Color(colorVal),
+          categoryEmoji: row['category_emoji'] as String? ?? '⚡',
+          isFocusMode: row['is_focus_mode'] as bool? ?? false,
+          activeDays: List<int>.from((row['active_days'] as List<dynamic>?) ?? []),
+        );
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          _allBlocks = loaded;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load schedule: $e')),
+        );
+      }
+    }
   }
 
   void _editBlock(int index) {
@@ -98,17 +125,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         ),
         centerTitle: false,
         actions: [
-          TextButton.icon(
-            onPressed: _resetToDefault,
-            icon: Icon(Icons.restore, color: context.themeColors.neonRed, size: 16),
-            label: Text(
-              'RESET',
-              style: GoogleFonts.orbitron(
-                color: context.themeColors.neonRed,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+          IconButton(
+            onPressed: _fetchDirectives,
+            icon: Icon(Icons.refresh, color: context.themeColors.electricBlue, size: 20),
+            tooltip: 'Refresh Protocol',
           )
         ],
       ),
@@ -116,14 +136,39 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         children: [
           _buildDaySelector(),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16).copyWith(bottom: 100),
-              physics: const BouncingScrollPhysics(),
-              itemCount: _blocks.length,
-              itemBuilder: (context, index) {
-                return _buildTimelineItem(_blocks[index], index);
-              },
-            ),
+            child: _isLoading
+                ? Center(
+                    child: CircularProgressIndicator(color: context.themeColors.electricBlue),
+                  )
+                : Builder(
+                    builder: (context) {
+                      final visibleBlocks = _allBlocks
+                          .where((b) => b.activeDays.contains(_selectedDayIndex))
+                          .toList()
+                        ..sort((a, b) => a.time.compareTo(b.time));
+
+                      if (visibleBlocks.isEmpty) {
+                        return Center(
+                          child: Text(
+                            'NO PROTOCOLS FOR THIS DAY',
+                            style: GoogleFonts.orbitron(
+                              color: context.themeColors.textMuted,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16).copyWith(bottom: 100),
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: visibleBlocks.length,
+                        itemBuilder: (context, index) {
+                          return _buildTimelineItem(visibleBlocks[index], index);
+                        },
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -145,7 +190,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               isScrollControlled: true,
               backgroundColor: Colors.transparent,
               builder: (context) => const AddTaskSheet(),
-            );
+            ).then((_) {
+              if (mounted) _fetchDirectives();
+            });
           },
           backgroundColor: context.themeColors.neonGreen,
           foregroundColor: Colors.black,
@@ -241,7 +288,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               child: GestureDetector(
                 onTap: () => _editBlock(index),
                 child: GlowCard(
-                  glowing: false,
+                  glowing: block.isFocusMode,
                   glowColor: block.glowColor,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   child: Row(
@@ -255,6 +302,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         ),
                       ),
                       const SizedBox(width: 12),
+                      Text(block.categoryEmoji, style: const TextStyle(fontSize: 16)),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
