@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/models/task_entry.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../daily_tracker/daily_tracker_screen.dart';
 import '../schedule/schedule_screen.dart';
@@ -53,15 +52,13 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final dummyTodayData = DayData(date: DateTime.now(), tasks: buildDefaultTasks());
-    
     // Fetch architect name from Supabase session
     final user = Supabase.instance.client.auth.currentUser;
     final name = user?.userMetadata?['name'] ?? 'Architect';
-    
+
     final screens = [
       DashboardScreen(architectName: name),
-      DailyTrackerScreen(todayData: dummyTodayData),
+      const DailyTrackerScreen(),
       const ScheduleScreen(),
       const WeeklyReportScreen(),
       const SkillsScreen(),
