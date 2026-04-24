@@ -410,7 +410,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                           HapticFeedback.lightImpact();
                           setState(() => _isFocusMode = val);
                         },
-                        activeColor: colors.gold,
+                        activeThumbColor: colors.gold,
                         activeTrackColor: colors.gold.withValues(alpha: 0.3),
                         inactiveThumbColor: colors.textMuted,
                         inactiveTrackColor: colors.bgCardLight,

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/theme/app_theme.dart';
-import 'core/storage/user_storage.dart';
-import 'features/onboarding/onboarding_screen.dart';
+import 'features/auth/login_screen.dart';
 import 'features/shell/main_shell.dart';
 
 void main() async {
@@ -13,6 +13,12 @@ void main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+
+  // Initialize Supabase
+  await Supabase.initialize(
+    url: 'https://nxhzoggsxhzjwsolodlh.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54aHpvZ2dzeGh6andzb2xvZGxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNTU5MjIsImV4cCI6MjA5MjYzMTkyMn0.WAkakYcsh5vAok9FTkP4cQQ94tL5yDZOlzGQaFNtsv0',
+  );
 
   // Transparent status bar for immersive feel
   SystemChrome.setSystemUIOverlayStyle(
@@ -55,30 +61,27 @@ class AppRouter extends StatefulWidget {
 
 class _AppRouterState extends State<AppRouter> {
   bool _loading = true;
-  bool _onboarded = false;
-  String _architectName = '';
+  bool _isAuthenticated = false;
 
   @override
   void initState() {
     super.initState();
-    _checkOnboarding();
-  }
-
-  Future<void> _checkOnboarding() async {
-    final onboarded = await UserStorage.isOnboarded();
-    final name = await UserStorage.getArchitectName();
-    setState(() {
-      _onboarded = onboarded;
-      _architectName = name ?? '';
-      _loading = false;
+    _checkAuth();
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (!mounted) return;
+      final session = data.session;
+      setState(() {
+        _isAuthenticated = session != null;
+        _loading = false;
+      });
     });
   }
 
-  void _onOnboardingComplete() async {
-    final name = await UserStorage.getArchitectName();
+  void _checkAuth() {
+    final session = Supabase.instance.client.auth.currentSession;
     setState(() {
-      _onboarded = true;
-      _architectName = name ?? '';
+      _isAuthenticated = session != null;
+      _loading = false;
     });
   }
 
@@ -107,11 +110,10 @@ class _AppRouterState extends State<AppRouter> {
       );
     }
 
-    if (!_onboarded) {
-      return OnboardingScreen(onComplete: _onOnboardingComplete);
+    if (_isAuthenticated) {
+      return const MainShell();
     }
 
-    return MainShell(architectName: _architectName);
+    return const LoginScreen();
   }
 }
-

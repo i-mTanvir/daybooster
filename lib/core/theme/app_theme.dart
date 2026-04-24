@@ -210,7 +210,6 @@ class AppTheme {
       case AppThemeType.lime:
         return _buildTheme(Brightness.light, AppThemeColors.lime);
       case AppThemeType.dark:
-      default:
         return _buildTheme(Brightness.dark, AppThemeColors.dark);
     }
   }
