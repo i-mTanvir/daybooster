@@ -7,7 +7,12 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glow_card.dart';
 
 class AddTaskSheet extends StatefulWidget {
-  const AddTaskSheet({super.key});
+  /// When provided, the sheet enters "Edit Mode" and pre-fills all fields.
+  final Map<String, dynamic>? existingDirective;
+
+  const AddTaskSheet({super.key, this.existingDirective});
+
+  bool get isEditMode => existingDirective != null;
 
   @override
   State<AddTaskSheet> createState() => _AddTaskSheetState();
@@ -21,21 +26,12 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   int _selectedCategoryIndex = 0;
   TimeOfDay _startTime = const TimeOfDay(hour: 7, minute: 0);
   int _durationMinutes = 60;
-  final List<bool> _selectedDays = List.generate(7, (index) => true); // S M T W T F S
+  final List<bool> _selectedDays = List.generate(7, (index) => true);
   bool _isProgress = true;
   bool _isFocusMode = false;
-
-  final List<String> _dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _targetController.dispose();
-    _metricController.dispose();
-    super.dispose();
-  }
-
   bool _isSaving = false;
+
+  final List<String> _dayLabels = ['S', 'S', 'M', 'T', 'W', 'T', 'F']; // Sat Sun Mon Tue Wed Thu Fri
 
   List<Map<String, dynamic>> _getCategories(AppThemeColors colors) {
     return [
@@ -46,6 +42,62 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       {'name': 'Prayer', 'emoji': '🕌', 'color': colors.neonGreen},
       {'name': 'Custom', 'emoji': '✨', 'color': colors.textPrimary},
     ];
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _populateFromExisting();
+  }
+
+  void _populateFromExisting() {
+    final d = widget.existingDirective;
+    if (d == null) return;
+
+    _nameController.text = d['name'] as String? ?? '';
+
+    // Parse start time from '07:15:00' or '07:15'
+    final timeStr = d['start_time'] as String? ?? '07:00:00';
+    final parts = timeStr.split(':');
+    if (parts.length >= 2) {
+      _startTime = TimeOfDay(
+        hour: int.tryParse(parts[0]) ?? 7,
+        minute: int.tryParse(parts[1]) ?? 0,
+      );
+    }
+
+    _durationMinutes = (d['duration_minutes'] as int?) ?? 60;
+    _isFocusMode = (d['is_focus_mode'] as bool?) ?? false;
+
+    final trackingType = d['tracking_type'] as String? ?? 'binary';
+    _isProgress = trackingType == 'progress';
+
+    if (_isProgress) {
+      _targetController.text = (d['target_metric'] ?? 60).toString();
+      _metricController.text = d['metric_name'] as String? ?? 'Minutes';
+    }
+
+    // Active days
+    final activeDays = List<int>.from((d['active_days'] as List<dynamic>?) ?? []);
+    for (int i = 0; i < 7; i++) {
+      _selectedDays[i] = activeDays.contains(i);
+    }
+
+    // Match emoji to category index
+    final emoji = d['category_emoji'] as String? ?? '✨';
+    // We can't call _getCategories here (no context yet), so use a simple emoji map
+    const emojiToIndex = {
+      '🏋️': 0, '📖': 1, '💻': 2, '💼': 3, '🕌': 4,
+    };
+    _selectedCategoryIndex = emojiToIndex[emoji] ?? 5; // Default to Custom
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _targetController.dispose();
+    _metricController.dispose();
+    super.dispose();
   }
 
   Future<void> _saveTask() async {
@@ -73,10 +125,10 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         if (_selectedDays[i]) activeDaysInts.add(i);
       }
 
-      final startTimeStr = '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}:00';
+      final startTimeStr =
+          '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}:00';
 
-      await Supabase.instance.client.from('directives').insert({
-        'user_id': user.id,
+      final payload = {
         'name': name,
         'category_emoji': selectedCategory['emoji'],
         'color_hex': colorHex,
@@ -87,14 +139,30 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         'target_metric': _isProgress ? int.tryParse(_targetController.text.trim()) : null,
         'metric_name': _isProgress ? _metricController.text.trim() : null,
         'is_focus_mode': _isFocusMode,
-      });
+      };
+
+      if (widget.isEditMode) {
+        // UPDATE existing row
+        final directiveId = widget.existingDirective!['id'] as String;
+        await Supabase.instance.client
+            .from('directives')
+            .update(payload)
+            .eq('id', directiveId);
+      } else {
+        // INSERT new row
+        payload['user_id'] = user.id;
+        await Supabase.instance.client.from('directives').insert(payload);
+      }
 
       HapticFeedback.heavyImpact();
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('DIRECTIVE INITIALIZED', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+            content: Text(
+              widget.isEditMode ? 'DIRECTIVE UPDATED' : 'DIRECTIVE INITIALIZED',
+              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+            ),
             backgroundColor: context.themeColors.neonGreen,
           ),
         );
@@ -113,7 +181,6 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
-
     final categories = _getCategories(colors);
 
     return Container(
@@ -145,9 +212,9 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'NEW DIRECTIVE',
+                  widget.isEditMode ? 'EDIT DIRECTIVE' : 'NEW DIRECTIVE',
                   style: GoogleFonts.orbitron(
-                    color: colors.electricBlue,
+                    color: widget.isEditMode ? colors.gold : colors.electricBlue,
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 2,
@@ -266,7 +333,6 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                         'DURATION',
                         '$_durationMinutes min',
                         () {
-                          // Simplistic duration toggle for mock
                           setState(() {
                             _durationMinutes += 15;
                             if (_durationMinutes > 180) _durationMinutes = 15;
@@ -387,7 +453,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                     ],
                   ),
                 ),
-                
+
                 if (_isProgress) ...[
                   const SizedBox(height: 16),
                   Row(
@@ -479,23 +545,23 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                 ),
                 const SizedBox(height: 40),
 
-                // Save Button
+                // Save / Update Button
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
                     onPressed: _isSaving ? null : _saveTask,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: colors.neonGreen,
+                      backgroundColor: widget.isEditMode ? colors.gold : colors.neonGreen,
                       foregroundColor: Colors.black,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       elevation: 8,
-                      shadowColor: colors.neonGreen.withValues(alpha: 0.5),
+                      shadowColor: (widget.isEditMode ? colors.gold : colors.neonGreen).withValues(alpha: 0.5),
                     ),
                     child: _isSaving
                         ? const CircularProgressIndicator(color: Colors.black)
                         : Text(
-                            'INITIALIZE DIRECTIVE',
+                            widget.isEditMode ? 'UPDATE DIRECTIVE' : 'INITIALIZE DIRECTIVE',
                             style: GoogleFonts.orbitron(
                               fontSize: 16,
                               fontWeight: FontWeight.w900,

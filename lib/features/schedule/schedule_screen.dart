@@ -15,6 +15,7 @@ class ScheduleBlock {
   final String categoryEmoji;
   final bool isFocusMode;
   final List<int> activeDays;
+  final Map<String, dynamic> rawData;
 
   ScheduleBlock({
     required this.id,
@@ -25,6 +26,7 @@ class ScheduleBlock {
     required this.categoryEmoji,
     required this.isFocusMode,
     required this.activeDays,
+    required this.rawData,
   });
 }
 
@@ -82,6 +84,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           categoryEmoji: row['category_emoji'] as String? ?? '⚡',
           isFocusMode: row['is_focus_mode'] as bool? ?? false,
           activeDays: List<int>.from((row['active_days'] as List<dynamic>?) ?? []),
+          rawData: row,
         );
       }).toList();
 
@@ -101,10 +104,15 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     }
   }
 
-  void _editBlock(int index) {
-    // ScaffoldMessenger.of(context).showSnackBar(
-    //   SnackBar(content: Text('Edit logic for ${_blocks[index].name} coming soon.')),
-    // );
+  void _editBlock(ScheduleBlock block) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AddTaskSheet(existingDirective: block.rawData),
+    ).then((_) {
+      if (mounted) _fetchDirectives();
+    });
   }
 
   @override
@@ -286,7 +294,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             // Card
             Expanded(
               child: GestureDetector(
-                onTap: () => _editBlock(index),
+                onTap: () => _editBlock(block),
                 child: GlowCard(
                   glowing: block.isFocusMode,
                   glowColor: block.glowColor,
