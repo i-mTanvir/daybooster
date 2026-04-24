@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+enum AppThemeType { dark, cream, lime }
+
 class AppThemeColors extends ThemeExtension<AppThemeColors> {
   final Color bg;
   final Color bgCard;
@@ -94,6 +96,29 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
     perfCritical: Color(0xFFE5003F),
   );
 
+  static const lime = AppThemeColors(
+    bg: Color(0xFFF4F9F1), // Soft pale lime
+    bgCard: Color(0xFFFFFFFF),
+    bgCardLight: Color(0xFFE9F5E1),
+    neonGreen: Color(0xFF2E7D32),
+    neonRed: Color(0xFFD32F2F),
+    neonPurple: Color(0xFF7B1FA2),
+    neonYellow: Color(0xFFFBC02D),
+    electricBlue: Color(0xFF0277BD),
+    gold: Color(0xFFF9A825),
+    textPrimary: Color(0xFF1B5E20),
+    textSecondary: Color(0xFF388E3C),
+    textMuted: Color(0xFF81C784),
+    borderSubtle: Color(0xFFC8E6C9),
+    perfLegendary: Color(0xFFF9A825),
+    perfOverdrive: Color(0xFF7B1FA2),
+    perfTarget: Color(0xFF2E7D32),
+    perfAlmost: Color(0xFF0277BD),
+    perfBelowTarget: Color(0xFFFBC02D),
+    perfWeak: Color(0xFFF57C00),
+    perfCritical: Color(0xFFD32F2F),
+  );
+
   @override
   ThemeExtension<AppThemeColors> copyWith() => this;
 
@@ -176,38 +201,37 @@ class AppColors {
 }
 
 class AppTheme {
-  static final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
+  static final ValueNotifier<AppThemeType> themeNotifier = ValueNotifier(AppThemeType.dark);
 
-  static ThemeData get darkTheme {
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: AppThemeColors.dark.bg,
-      colorScheme: const ColorScheme.dark().copyWith(
-        primary: AppThemeColors.dark.electricBlue,
-        secondary: AppThemeColors.dark.neonPurple,
-        surface: AppThemeColors.dark.bgCard,
-      ),
-      textTheme: GoogleFonts.shareTechMonoTextTheme(ThemeData.dark().textTheme),
-      extensions: const <ThemeExtension<dynamic>>[
-        AppThemeColors.dark,
-      ],
-    );
+  static ThemeData getThemeData(AppThemeType type) {
+    switch (type) {
+      case AppThemeType.cream:
+        return _buildTheme(Brightness.light, AppThemeColors.light);
+      case AppThemeType.lime:
+        return _buildTheme(Brightness.light, AppThemeColors.lime);
+      case AppThemeType.dark:
+      default:
+        return _buildTheme(Brightness.dark, AppThemeColors.dark);
+    }
   }
 
-  static ThemeData get lightTheme {
+  static ThemeData _buildTheme(Brightness brightness, AppThemeColors colors) {
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.light,
-      scaffoldBackgroundColor: AppThemeColors.light.bg,
-      colorScheme: const ColorScheme.light().copyWith(
-        primary: AppThemeColors.light.electricBlue,
-        secondary: AppThemeColors.light.neonPurple,
-        surface: AppThemeColors.light.bgCard,
+      brightness: brightness,
+      scaffoldBackgroundColor: colors.bg,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: colors.neonGreen,
+        brightness: brightness,
+        primary: colors.electricBlue,
+        secondary: colors.neonPurple,
+        surface: colors.bgCard,
       ),
-      textTheme: GoogleFonts.shareTechMonoTextTheme(ThemeData.light().textTheme),
-      extensions: const <ThemeExtension<dynamic>>[
-        AppThemeColors.light,
+      textTheme: GoogleFonts.shareTechMonoTextTheme(
+        brightness == Brightness.dark ? ThemeData.dark().textTheme : ThemeData.light().textTheme,
+      ),
+      extensions: <ThemeExtension<dynamic>>[
+        colors,
       ],
     );
   }

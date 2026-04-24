@@ -209,21 +209,43 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
             ],
           ),
-          ValueListenableBuilder<ThemeMode>(
+          ValueListenableBuilder<AppThemeType>(
             valueListenable: AppTheme.themeNotifier,
-            builder: (context, themeMode, _) {
-              final isDark = themeMode == ThemeMode.dark;
+            builder: (context, themeType, _) {
+              IconData iconData;
+              Color iconColor;
+              
+              switch (themeType) {
+                case AppThemeType.dark:
+                  iconData = Icons.light_mode_rounded;
+                  iconColor = context.themeColors.gold;
+                  break;
+                case AppThemeType.cream:
+                  iconData = Icons.eco_rounded;
+                  iconColor = context.themeColors.neonGreen;
+                  break;
+                case AppThemeType.lime:
+                  iconData = Icons.dark_mode_rounded;
+                  iconColor = context.themeColors.neonPurple;
+                  break;
+              }
+
               return IconButton(
                 onPressed: () {
                   HapticFeedback.lightImpact();
-                  AppTheme.themeNotifier.value =
-                      isDark ? ThemeMode.light : ThemeMode.dark;
+                  switch (themeType) {
+                    case AppThemeType.dark:
+                      AppTheme.themeNotifier.value = AppThemeType.cream;
+                      break;
+                    case AppThemeType.cream:
+                      AppTheme.themeNotifier.value = AppThemeType.lime;
+                      break;
+                    case AppThemeType.lime:
+                      AppTheme.themeNotifier.value = AppThemeType.dark;
+                      break;
+                  }
                 },
-                icon: Icon(
-                  isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                  color: isDark ? context.themeColors.gold : context.themeColors.neonPurple,
-                  size: 22,
-                ),
+                icon: Icon(iconData, color: iconColor, size: 22),
                 tooltip: 'Toggle Theme',
               );
             },

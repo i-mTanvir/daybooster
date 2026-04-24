@@ -32,15 +32,13 @@ class DayBoosterApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
+    return ValueListenableBuilder<AppThemeType>(
       valueListenable: AppTheme.themeNotifier,
-      builder: (context, themeMode, _) {
+      builder: (context, themeType, _) {
         return MaterialApp(
           title: 'DayBooster — The Architect Protocol',
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          themeMode: themeMode,
+          theme: AppTheme.getThemeData(themeType),
           home: const AppRouter(),
         );
       },
