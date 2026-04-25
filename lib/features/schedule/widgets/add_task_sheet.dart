@@ -23,31 +23,64 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   final _targetController = TextEditingController(text: '60');
   final _metricController = TextEditingController(text: 'Minutes');
 
-  int _selectedCategoryIndex = 0;
+  String _selectedCategoryEmoji = '🏋️';
   TimeOfDay _startTime = const TimeOfDay(hour: 7, minute: 0);
   int _durationMinutes = 60;
   final List<bool> _selectedDays = List.generate(7, (index) => true);
   bool _isProgress = true;
   bool _isFocusMode = false;
   bool _isSaving = false;
+  List<String> _dbCategoryEmojis = [];
+  static const String _customCategoryEmoji = '🧩';
 
   final List<String> _dayLabels = ['S', 'S', 'M', 'T', 'W', 'T', 'F']; // Sat Sun Mon Tue Wed Thu Fri
 
   List<Map<String, dynamic>> _getCategories(AppThemeColors colors) {
-    return [
-      {'name': 'Gym', 'emoji': '🏋️', 'color': colors.neonRed},
-      {'name': 'Read', 'emoji': '📖', 'color': colors.neonPurple},
-      {'name': 'Code', 'emoji': '💻', 'color': colors.electricBlue},
-      {'name': 'Work', 'emoji': '💼', 'color': colors.gold},
-      {'name': 'Prayer', 'emoji': '🕌', 'color': colors.neonGreen},
-      {'name': 'Custom', 'emoji': '✨', 'color': colors.textPrimary},
+    final categories = <Map<String, dynamic>>[
+      {'name': 'Gym', 'emoji': '\u{1F3CB}\u{FE0F}', 'color': colors.neonRed},
+      {'name': 'Read', 'emoji': '\u{1F4D6}', 'color': colors.neonPurple},
+      {'name': 'Code', 'emoji': '\u{1F4BB}', 'color': colors.electricBlue},
+      {'name': 'Work', 'emoji': '\u{1F6E0}\u{FE0F}', 'color': colors.gold},
+      {'name': 'Prayer', 'emoji': '\u{1F54C}', 'color': colors.neonGreen},
     ];
-  }
 
+    final present = categories.map((c) => c['emoji'] as String).toSet();
+    for (final emoji in _dbCategoryEmojis) {
+      final clean = emoji.trim();
+      if (clean.isEmpty || clean == _customCategoryEmoji || present.contains(clean)) {
+        continue;
+      }
+      categories.add({
+        'name': 'Saved',
+        'emoji': clean,
+        'color': colors.textPrimary,
+      });
+      present.add(clean);
+    }
+
+    if (!present.contains(_selectedCategoryEmoji) &&
+        _selectedCategoryEmoji != _customCategoryEmoji &&
+        _selectedCategoryEmoji.trim().isNotEmpty) {
+      categories.add({
+        'name': 'Saved',
+        'emoji': _selectedCategoryEmoji,
+        'color': colors.textPrimary,
+      });
+    }
+
+    categories.add({
+      'name': 'Custom',
+      'emoji': _customCategoryEmoji,
+      'color': colors.textPrimary,
+    });
+
+    return categories;
+  }
   @override
   void initState() {
     super.initState();
     _populateFromExisting();
+    _loadCategoryEmojisFromDb();
   }
 
   void _populateFromExisting() {
@@ -82,14 +115,34 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     for (int i = 0; i < 7; i++) {
       _selectedDays[i] = activeDays.contains(i);
     }
+    _selectedCategoryEmoji = d['category_emoji'] as String? ?? _customCategoryEmoji;
+  }
 
-    // Match emoji to category index
-    final emoji = d['category_emoji'] as String? ?? '✨';
-    // We can't call _getCategories here (no context yet), so use a simple emoji map
-    const emojiToIndex = {
-      '🏋️': 0, '📖': 1, '💻': 2, '💼': 3, '🕌': 4,
-    };
-    _selectedCategoryIndex = emojiToIndex[emoji] ?? 5; // Default to Custom
+  Future<void> _loadCategoryEmojisFromDb() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+
+      final response = await Supabase.instance.client
+          .from('directives')
+          .select('category_emoji')
+          .eq('user_id', user.id);
+
+      final seen = <String>{};
+      final emojis = <String>[];
+      for (final row in (response as List<dynamic>).cast<Map<String, dynamic>>()) {
+        final emoji = (row['category_emoji'] as String?)?.trim();
+        if (emoji == null || emoji.isEmpty) continue;
+        if (seen.add(emoji)) {
+          emojis.add(emoji);
+        }
+      }
+
+      if (!mounted) return;
+      setState(() => _dbCategoryEmojis = emojis);
+    } catch (_) {
+      // Keep static categories if DB read fails.
+    }
   }
 
   @override
@@ -116,7 +169,10 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       if (user == null) throw Exception('No active session found.');
 
       final categories = _getCategories(context.themeColors);
-      final selectedCategory = categories[_selectedCategoryIndex];
+      final selectedCategory = categories.firstWhere(
+        (c) => c['emoji'] == _selectedCategoryEmoji,
+        orElse: () => categories.last,
+      );
       final colorValue = (selectedCategory['color'] as Color).toARGB32();
       final colorHex = '#${colorValue.toRadixString(16).padLeft(8, '0').toUpperCase()}';
 
@@ -265,13 +321,13 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                     itemCount: categories.length,
                     itemBuilder: (context, index) {
                       final cat = categories[index];
-                      final isSelected = _selectedCategoryIndex == index;
+                      final isSelected = _selectedCategoryEmoji == (cat['emoji'] as String);
                       final cColor = cat['color'] as Color;
 
                       return GestureDetector(
                         onTap: () {
                           HapticFeedback.selectionClick();
-                          setState(() => _selectedCategoryIndex = index);
+                          setState(() => _selectedCategoryEmoji = cat['emoji'] as String);
                         },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
@@ -638,3 +694,5 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     );
   }
 }
+
+
