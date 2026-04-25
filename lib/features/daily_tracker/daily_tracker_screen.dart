@@ -167,10 +167,42 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
     return rawTime.substring(0, 5);
   }
 
+  bool _isCompletedForOrdering(Map<String, dynamic> directive) {
+    final directiveId = directive['id'] as String?;
+    if (directiveId == null) return false;
+
+    final trackingType = directive['tracking_type'] as String? ?? 'binary';
+    final log = _logs[directiveId];
+    if (log == null) return false;
+
+    // For this UX rule, only binary directives move down after DONE/MISSED.
+    if (trackingType == 'binary') {
+      return log['is_done'] != null;
+    }
+
+    return false;
+  }
+
+  List<Map<String, dynamic>> _orderedDirectives() {
+    final ordered = List<Map<String, dynamic>>.from(_directives);
+    ordered.sort((a, b) {
+      final aDone = _isCompletedForOrdering(a);
+      final bDone = _isCompletedForOrdering(b);
+      if (aDone != bDone) {
+        return aDone ? 1 : -1; // incomplete first, completed last
+      }
+      final tA = (a['start_time'] as String? ?? '00:00');
+      final tB = (b['start_time'] as String? ?? '00:00');
+      return tA.compareTo(tB);
+    });
+    return ordered;
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
     final dayName = _dayNames[_todayDayIndex];
+    final orderedDirectives = _orderedDirectives();
 
     return Scaffold(
       backgroundColor: colors.bg,
@@ -218,9 +250,9 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
                       child: ListView.builder(
                         padding: const EdgeInsets.all(20).copyWith(bottom: 100),
                         physics: const BouncingScrollPhysics(),
-                        itemCount: _directives.length,
+                        itemCount: orderedDirectives.length,
                         itemBuilder: (context, index) {
-                          final directive = _directives[index];
+                          final directive = orderedDirectives[index];
                           final directiveId = directive['id'] as String;
                           final log = _logs[directiveId];
                           return Padding(
