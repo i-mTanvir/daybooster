@@ -302,6 +302,43 @@ class OfflineSyncService {
     return Map<String, dynamic>.from(payload);
   }
 
+  Future<Map<String, dynamic>> setDailyLogBinaryState({
+    required String directiveId,
+    required String logDate,
+    required bool? isDone,
+  }) async {
+    if (_userId == null) return {};
+    final current = _getCachedList('daily_logs');
+    final idx = current.indexWhere(
+      (e) => e['directive_id'] == directiveId && e['log_date'] == logDate,
+    );
+    final id = idx >= 0 ? current[idx]['id'] : _uuidV4();
+    final payload = <String, dynamic>{
+      'id': id,
+      'user_id': _userId,
+      'directive_id': directiveId,
+      'log_date': logDate,
+      'is_done': isDone,
+      'progress_value': null,
+    };
+
+    if (idx >= 0) {
+      current[idx] = {...current[idx], ...payload};
+    } else {
+      current.add(payload);
+    }
+    await _setCachedList('daily_logs', _pruneDailyLogs(current));
+    await _enqueueOp({
+      'table': 'daily_logs',
+      'action': 'upsert',
+      'payload': payload,
+      'on_conflict': 'directive_id,log_date',
+    });
+    AppRefreshBus.bump();
+    unawaited(syncNow());
+    return Map<String, dynamic>.from(payload);
+  }
+
   Future<void> upsertSkill(Map<String, dynamic> row) async {
     if (_userId == null) return;
     final current = _getCachedList('skills');

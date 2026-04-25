@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/data/offline_sync_service.dart';
+import '../../../core/services/haptics_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glow_card.dart';
 
@@ -153,7 +153,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   Future<void> _saveTask() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      HapticFeedback.heavyImpact();
+      HapticsService.heavyImpact();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: const Text('Protocol name required'), backgroundColor: context.themeColors.neonRed),
       );
@@ -201,7 +201,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       }
       unawaited(OfflineSyncService.instance.syncNow());
 
-      HapticFeedback.heavyImpact();
+      HapticsService.heavyImpact();
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -317,7 +317,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
 
                       return GestureDetector(
                         onTap: () {
-                          HapticFeedback.selectionClick();
+                          HapticsService.selectionClick();
                           setState(() => _selectedCategoryEmoji = cat['emoji'] as String);
                         },
                         child: AnimatedContainer(
@@ -405,7 +405,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                     final isSelected = _selectedDays[index];
                     return GestureDetector(
                       onTap: () {
-                        HapticFeedback.selectionClick();
+                        HapticsService.selectionClick();
                         setState(() => _selectedDays[index] = !isSelected);
                       },
                       child: AnimatedContainer(
@@ -450,7 +450,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                       Expanded(
                         child: GestureDetector(
                           onTap: () {
-                            HapticFeedback.lightImpact();
+                            HapticsService.lightImpact();
                             setState(() => _isProgress = false);
                           },
                           child: Container(
@@ -475,7 +475,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                       Expanded(
                         child: GestureDetector(
                           onTap: () {
-                            HapticFeedback.lightImpact();
+                            HapticsService.lightImpact();
                             setState(() => _isProgress = true);
                           },
                           child: Container(
@@ -579,7 +579,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                       Switch(
                         value: _isFocusMode,
                         onChanged: (val) {
-                          HapticFeedback.lightImpact();
+                          HapticsService.lightImpact();
                           setState(() => _isFocusMode = val);
                         },
                         activeThumbColor: colors.gold,

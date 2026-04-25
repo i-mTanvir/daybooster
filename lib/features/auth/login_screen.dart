@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/services/haptics_service.dart';
 import '../../core/theme/app_theme.dart';
 import 'signup_screen.dart';
 
@@ -19,7 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
   void _cycleTheme(AppThemeType themeType) {
-    HapticFeedback.lightImpact();
+    HapticsService.lightImpact();
     AppTheme.setTheme(AppTheme.nextTheme(themeType));
   }
 
@@ -46,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text.trim();
     if (email.isEmpty || password.isEmpty) return;
 
-    HapticFeedback.lightImpact();
+    HapticsService.lightImpact();
     setState(() => _isLoading = true);
     try {
       await Supabase.instance.client.auth.signInWithPassword(
@@ -170,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 24),
                 TextButton(
                   onPressed: () {
-                    HapticFeedback.selectionClick();
+                    HapticsService.selectionClick();
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const SignupScreen()),

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/services/haptics_service.dart';
 import '../../core/theme/app_theme.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -23,7 +23,7 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _isLoading = false;
 
   void _cycleTheme(AppThemeType themeType) {
-    HapticFeedback.lightImpact();
+    HapticsService.lightImpact();
     AppTheme.setTheme(AppTheme.nextTheme(themeType));
   }
 
@@ -60,14 +60,14 @@ class _SignupScreenState extends State<SignupScreen> {
     if (name.isEmpty || email.isEmpty || password.isEmpty || age.isEmpty || phone.isEmpty) return;
     
     if (password != confirm) {
-      HapticFeedback.heavyImpact();
+      HapticsService.heavyImpact();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: const Text('Passwords do not match'), backgroundColor: context.themeColors.neonRed),
       );
       return;
     }
 
-    HapticFeedback.lightImpact();
+    HapticsService.lightImpact();
     setState(() => _isLoading = true);
     try {
       final authResponse = await Supabase.instance.client.auth.signUp(

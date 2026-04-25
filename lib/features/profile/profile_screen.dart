@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../core/services/haptics_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/glow_card.dart';
 
@@ -14,14 +18,40 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final user = Supabase.instance.client.auth.currentUser;
+  static const _avatarBucket = 'avatars';
+
+  User? _user;
+  bool _uploadingAvatar = false;
+  String? _avatarUrl;
+  bool _showOfflineBanner = false;
+  Timer? _networkTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _user = Supabase.instance.client.auth.currentUser;
+    _avatarUrl = _user?.userMetadata?['avatar_url'] as String?;
+    _checkOnlineStatus();
+    _networkTimer = Timer.periodic(const Duration(seconds: 18), (_) {
+      _checkOnlineStatus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _networkTimer?.cancel();
+    super.dispose();
+  }
 
   void _cycleTheme(AppThemeType themeType) {
-    HapticFeedback.lightImpact();
+    HapticsService.lightImpact();
     AppTheme.setTheme(AppTheme.nextTheme(themeType));
   }
 
-  ({IconData icon, Color color}) _themeVisual(AppThemeType themeType, AppThemeColors colors) {
+  ({IconData icon, Color color}) _themeVisual(
+    AppThemeType themeType,
+    AppThemeColors colors,
+  ) {
     switch (themeType) {
       case AppThemeType.dark:
         return (icon: Icons.light_mode_rounded, color: colors.gold);
@@ -33,21 +63,121 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _logout() async {
-    HapticFeedback.heavyImpact();
+    HapticsService.heavyImpact();
     await Supabase.instance.client.auth.signOut();
     if (mounted) {
       Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }
 
+  Future<void> _pickAndUploadAvatar() async {
+    if (_uploadingAvatar || _user == null) return;
+    HapticsService.selectionClick();
+
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 88,
+    );
+    if (file == null) return;
+
+    setState(() => _uploadingAvatar = true);
+    try {
+      final bytes = await file.readAsBytes();
+      final path = '${_user!.id}/avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+      await Supabase.instance.client.storage.from(_avatarBucket).uploadBinary(
+            path,
+            bytes,
+            fileOptions: const FileOptions(
+              contentType: 'image/jpeg',
+              upsert: true,
+            ),
+          );
+
+      final publicUrl = Supabase.instance.client.storage
+          .from(_avatarBucket)
+          .getPublicUrl(path);
+
+      final updatedMeta = Map<String, dynamic>.from(_user?.userMetadata ?? {});
+      updatedMeta['avatar_url'] = publicUrl;
+      await Supabase.instance.client.auth.updateUser(
+        UserAttributes(data: updatedMeta),
+      );
+
+      try {
+        await Supabase.instance.client.from('profiles').upsert({
+          'id': _user!.id,
+          'avatar_url': publicUrl,
+        });
+      } catch (_) {
+        // Avatar may still work from user metadata if profile column is not present.
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _avatarUrl = publicUrl;
+        _user = Supabase.instance.client.auth.currentUser;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Profile image updated'),
+          backgroundColor: context.themeColors.neonGreen,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Image upload failed: $e'),
+          backgroundColor: context.themeColors.neonRed,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
+    }
+  }
+
+  Future<void> _checkOnlineStatus() async {
+    if (!mounted || _user == null) return;
+    try {
+      await Supabase.instance.client
+          .from('profiles')
+          .select('id')
+          .eq('id', _user!.id)
+          .limit(1)
+          .timeout(const Duration(seconds: 6));
+      if (!mounted) return;
+      if (_showOfflineBanner) {
+        setState(() => _showOfflineBanner = false);
+      }
+    } catch (e) {
+      final msg = e.toString().toLowerCase();
+      final isNetworkIssue = msg.contains('socketexception') ||
+          msg.contains('failed host lookup') ||
+          msg.contains('network') ||
+          msg.contains('timed out') ||
+          msg.contains('clientexception');
+      if (!mounted) return;
+      if (isNetworkIssue && !_showOfflineBanner) {
+        setState(() => _showOfflineBanner = true);
+      }
+      if (!isNetworkIssue && _showOfflineBanner) {
+        setState(() => _showOfflineBanner = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
-    final meta = user?.userMetadata ?? {};
+    final meta = _user?.userMetadata ?? {};
     final name = meta['name'] ?? 'UNKNOWN ARCHITECT';
     final age = meta['age']?.toString() ?? 'N/A';
     final phone = meta['phone_number'] ?? 'N/A';
-    final email = user?.email ?? 'N/A';
+    final email = _user?.email ?? 'N/A';
 
     return Scaffold(
       backgroundColor: colors.bg,
@@ -86,36 +216,112 @@ class _ProfileScreenState extends State<ProfileScreen> {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // IDENTITY CARD
+        child: Column(
+          children: [
+            if (_showOfflineBanner)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.fromLTRB(24, 10, 24, 0),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: colors.neonYellow.withValues(alpha: 0.17),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: colors.neonYellow.withValues(alpha: 0.55)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.wifi_off_rounded, color: colors.neonYellow, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'OFFLINE MODE',
+                        style: GoogleFonts.orbitron(
+                          color: colors.neonYellow,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
               GlowCard(
                 glowColor: colors.neonPurple.withValues(alpha: 0.3),
                 child: Padding(
                   padding: const EdgeInsets.all(24.0),
                   child: Column(
                     children: [
-                      // Avatar Placeholder
-                      Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: colors.bg,
-                          border: Border.all(color: colors.neonPurple, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: colors.neonPurple.withValues(alpha: 0.5),
-                              blurRadius: 16,
-                              spreadRadius: 2,
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: 108,
+                            height: 108,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: colors.bg,
+                              border: Border.all(
+                                color: colors.neonPurple,
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: colors.neonPurple.withValues(alpha: 0.5),
+                                  blurRadius: 16,
+                                  spreadRadius: 2,
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: Icon(Icons.person, size: 50, color: colors.electricBlue),
-                      ).animate().shimmer(duration: 2.seconds, color: colors.neonPurple),
+                            child: ClipOval(
+                              child: _avatarUrl != null && _avatarUrl!.isNotEmpty
+                                  ? Image.network(
+                                      _avatarUrl!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) =>
+                                          Icon(Icons.person, size: 54, color: colors.electricBlue),
+                                    )
+                                  : Icon(Icons.person, size: 54, color: colors.electricBlue),
+                            ),
+                          ).animate().shimmer(duration: 2.seconds, color: colors.neonPurple),
+                          Positioned(
+                            right: -4,
+                            bottom: -2,
+                            child: InkWell(
+                              onTap: _uploadingAvatar ? null : _pickAndUploadAvatar,
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: colors.electricBlue,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: colors.bg, width: 2),
+                                ),
+                                child: _uploadingAvatar
+                                    ? Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: colors.bg,
+                                        ),
+                                      )
+                                    : Icon(
+                                        Icons.image_outlined,
+                                        size: 18,
+                                        color: colors.bg,
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         name.toString().toUpperCase(),
@@ -135,7 +341,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      // Responsive Meta Grid
                       LayoutBuilder(
                         builder: (context, constraints) {
                           final isCompact = constraints.maxWidth < 330;
@@ -169,10 +374,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1),
-
               const SizedBox(height: 40),
-
-              // SYSTEM SETTINGS
               Text(
                 'SYSTEM PROTOCOLS',
                 style: GoogleFonts.shareTechMono(
@@ -182,37 +384,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ).animate().fadeIn(delay: 200.ms),
               const SizedBox(height: 16),
-              
-              _buildSettingTile(
-                icon: Icons.vibration,
-                title: 'Haptic Feedback',
-                subtitle: 'Enable mechanical tactile responses',
-                colors: colors,
-                hasSwitch: true,
-                initialValue: true,
+              ValueListenableBuilder<bool>(
+                valueListenable: HapticsService.enabledNotifier,
+                builder: (context, enabled, _) {
+                  return _buildSettingTile(
+                    icon: Icons.vibration,
+                    title: 'Haptic Feedback',
+                    subtitle: 'Enable mechanical tactile responses',
+                    colors: colors,
+                    hasSwitch: true,
+                    switchValue: enabled,
+                    onSwitchChanged: (val) async {
+                      await HapticsService.setEnabled(val);
+                      if (val) HapticsService.lightImpact();
+                    },
+                  );
+                },
               ).animate().fadeIn(delay: 300.ms).slideX(begin: 0.1),
-              
               _buildSettingTile(
                 icon: Icons.sync,
                 title: 'Cloud Synchronization',
-                subtitle: 'Push local data to central nexus',
+                subtitle: 'Auto sync managed by system',
                 colors: colors,
-                hasSwitch: true,
-                initialValue: true,
+                hasSwitch: false,
               ).animate().fadeIn(delay: 400.ms).slideX(begin: 0.1),
-              
-              _buildSettingTile(
-                icon: Icons.security,
-                title: 'Biometric Lock',
-                subtitle: 'Require FaceID/TouchID for access',
-                colors: colors,
-                hasSwitch: true,
-                initialValue: false,
-              ).animate().fadeIn(delay: 500.ms).slideX(begin: 0.1),
-
               const SizedBox(height: 60),
-
-              // LOGOUT BUTTON
               SizedBox(
                 height: 56,
                 child: ElevatedButton.icon(
@@ -237,8 +433,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.1),
-            ],
-          ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -277,7 +476,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String subtitle,
     required AppThemeColors colors,
     bool hasSwitch = false,
-    bool initialValue = false,
+    bool switchValue = false,
+    ValueChanged<bool>? onSwitchChanged,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -298,8 +498,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         trailing: hasSwitch
             ? Switch(
-                value: initialValue,
-                onChanged: (val) {},
+                value: switchValue,
+                onChanged: onSwitchChanged,
                 activeThumbColor: colors.neonPurple,
                 activeTrackColor: colors.neonPurple.withValues(alpha: 0.3),
               )

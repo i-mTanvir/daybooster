@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/data/offline_sync_service.dart';
+import '../../core/services/haptics_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../daily_tracker/daily_tracker_screen.dart';
@@ -61,7 +61,7 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
 
   void _onNavTap(int index) {
     if (_currentIndex == index) return;
-    HapticFeedback.lightImpact();
+    HapticsService.lightImpact();
     _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 280),
@@ -115,7 +115,7 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
         physics: const BouncingScrollPhysics(),
         onPageChanged: (index) {
           if (_currentIndex != index) {
-            HapticFeedback.selectionClick();
+            HapticsService.selectionClick();
             setState(() => _currentIndex = index);
           }
         },

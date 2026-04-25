@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/data/offline_sync_service.dart';
+import '../../core/services/haptics_service.dart';
 import '../../core/state/app_refresh_bus.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/glow_card.dart';
@@ -155,6 +155,213 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
         );
       }
     }
+  }
+
+  Future<void> _setBinarySelection(String directiveId, bool? state) async {
+    try {
+      final res = await OfflineSyncService.instance.setDailyLogBinaryState(
+        directiveId: directiveId,
+        logDate: _todayDateStr,
+        isDone: state,
+      );
+      if (!mounted) return;
+      setState(() => _logs[directiveId] = res);
+      unawaited(OfflineSyncService.instance.syncNow());
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Update failed: $e'),
+          backgroundColor: context.themeColors.neonRed,
+        ),
+      );
+    }
+  }
+
+  Future<void> _showBinaryLongPressMenu(Map<String, dynamic> directive) async {
+    final directiveId = directive['id'] as String?;
+    if (directiveId == null) return;
+
+    final current = _logs[directiveId]?['is_done'] as bool?;
+    final title = (directive['name'] as String? ?? 'Task').toUpperCase();
+
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: context.themeColors.bgCard,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      builder: (context) {
+        final colors = context.themeColors;
+        final items = <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+            child: Text(
+              title,
+              style: GoogleFonts.orbitron(
+                color: colors.textPrimary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ];
+
+        if (current == null) {
+          items.addAll([
+            ListTile(
+              leading: Icon(Icons.check_circle_outline, color: colors.neonGreen),
+              title: Text('Mark Done', style: GoogleFonts.shareTechMono(color: colors.textPrimary)),
+              onTap: () => Navigator.pop(context, 'done'),
+            ),
+            ListTile(
+              leading: Icon(Icons.cancel_outlined, color: colors.neonRed),
+              title: Text('Mark Missed', style: GoogleFonts.shareTechMono(color: colors.textPrimary)),
+              onTap: () => Navigator.pop(context, 'missed'),
+            ),
+          ]);
+        } else {
+          items.add(
+            ListTile(
+              leading: Icon(Icons.remove_circle_outline, color: colors.gold),
+              title: Text('Remove Selection', style: GoogleFonts.shareTechMono(color: colors.textPrimary)),
+              onTap: () => Navigator.pop(context, 'clear'),
+            ),
+          );
+        }
+
+        items.add(
+          ListTile(
+            leading: Icon(Icons.close, color: colors.textMuted),
+            title: Text('Cancel', style: GoogleFonts.shareTechMono(color: colors.textMuted)),
+            onTap: () => Navigator.pop(context, 'cancel'),
+          ),
+        );
+
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: items,
+          ),
+        );
+      },
+    );
+
+    if (!mounted || action == null || action == 'cancel') return;
+    HapticsService.selectionClick();
+    if (action == 'done') {
+      await _setBinarySelection(directiveId, true);
+      unawaited(_showDoneCelebration(directive['name'] as String? ?? 'Task'));
+    } else if (action == 'missed') {
+      await _setBinarySelection(directiveId, false);
+    } else if (action == 'clear') {
+      await _setBinarySelection(directiveId, null);
+    }
+  }
+
+  Future<void> _showDoneCelebration(String title) async {
+    if (!mounted) return;
+    var dialogOpen = true;
+    unawaited(
+      Future<void>.delayed(const Duration(seconds: 3), () {
+        if (!mounted || !dialogOpen) return;
+        final nav = Navigator.of(context, rootNavigator: true);
+        if (nav.canPop()) {
+          nav.pop();
+        }
+      }),
+    );
+
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Celebration',
+      barrierColor: Colors.black.withValues(alpha: 0.58),
+      transitionDuration: const Duration(milliseconds: 280),
+      pageBuilder: (context, _, __) => Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                context.themeColors.bgCardLight,
+                context.themeColors.bgCard,
+              ],
+            ),
+            border: Border.all(
+              color: context.themeColors.neonGreen.withValues(alpha: 0.55),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: context.themeColors.neonGreen.withValues(alpha: 0.25),
+                blurRadius: 22,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: context.themeColors.neonGreen.withValues(alpha: 0.14),
+                ),
+                child: Icon(
+                  Icons.celebration_rounded,
+                  color: context.themeColors.neonGreen,
+                  size: 34,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'TASK COMPLETED',
+                style: GoogleFonts.orbitron(
+                  color: context.themeColors.neonGreen,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                width: 110,
+                height: 2,
+                color: context.themeColors.neonGreen.withValues(alpha: 0.35),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                title.toUpperCase(),
+                textAlign: TextAlign.center,
+                style: GoogleFonts.shareTechMono(
+                  color: context.themeColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      transitionBuilder: (context, anim, _, child) {
+        return FadeTransition(
+          opacity: anim,
+          child: ScaleTransition(
+            scale: CurvedAnimation(parent: anim, curve: Curves.easeOutBack),
+            child: child,
+          ),
+        );
+      },
+    );
+    dialogOpen = false;
   }
 
   String _formatTime(String? rawTime) {
@@ -400,13 +607,17 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
     final progressValue = (log?['progress_value'] as num?)?.toDouble() ?? 0.0;
     final hasLog = log != null;
 
-    return GlowCard(
-      glowing: isFocus || (hasLog && isDone == true),
-      glowColor: hasLog && isDone == true ? colors.neonGreen : glowColor,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return GestureDetector(
+      onLongPress: trackingType == 'binary'
+          ? () => _showBinaryLongPressMenu(directive)
+          : null,
+      child: GlowCard(
+        glowing: isFocus || (hasLog && isDone == true),
+        glowColor: hasLog && isDone == true ? colors.neonGreen : glowColor,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           Row(
             children: [
               Text(emoji, style: const TextStyle(fontSize: 22)),
@@ -454,7 +665,8 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
             _buildBinaryToggle(directiveId, isDone, colors)
           else
             _buildProgressSlider(directive, log, colors),
-        ],
+          ],
+        ),
       ),
     ).animate(delay: Duration(milliseconds: 50 * index)).fadeIn().slideX(begin: 0.05);
   }
@@ -488,7 +700,7 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
             isSelected: isDone == false,
             color: colors.neonRed,
             onTap: () {
-              HapticFeedback.lightImpact();
+              HapticsService.lightImpact();
               _upsertLog(directiveId, isDone: false);
             },
           ),
@@ -500,8 +712,16 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
             isSelected: isDone == true,
             color: colors.neonGreen,
             onTap: () {
-              HapticFeedback.lightImpact();
+              HapticsService.lightImpact();
               _upsertLog(directiveId, isDone: true);
+              if (isDone != true) {
+                unawaited(_showDoneCelebration(
+                  _directives.firstWhere(
+                    (d) => d['id'] == directiveId,
+                    orElse: () => {'name': 'Task'},
+                  )['name'] as String? ?? 'Task',
+                ));
+              }
             },
           ),
         ),
@@ -553,7 +773,7 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
             max: maxVal,
             divisions: maxVal.toInt(),
             onChanged: (val) {
-              HapticFeedback.selectionClick();
+              HapticsService.selectionClick();
               // Optimistic local update
               setState(() {
                 _logs[directiveId] = {

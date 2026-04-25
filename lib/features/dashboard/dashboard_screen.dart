@@ -2,13 +2,13 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/data/offline_sync_service.dart';
 import '../../core/models/task_entry.dart';
+import '../../core/services/haptics_service.dart';
 import '../../core/state/app_refresh_bus.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/glow_card.dart';
@@ -367,7 +367,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
           IconButton(
             onPressed: () {
-              HapticFeedback.lightImpact();
+              HapticsService.lightImpact();
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const ProfileScreen()),
@@ -402,12 +402,12 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
           const SizedBox(height: 6),
           GlowText(
-            text: 'The System\nAwaits.',
+            text: 'The System Awaits.',
             glowColor: context.themeColors.electricBlue,
             glowRadius: 12,
             style: GoogleFonts.orbitron(
               color: context.themeColors.textPrimary,
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: FontWeight.w900,
               height: 1.1,
             ),
