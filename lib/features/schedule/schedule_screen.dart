@@ -42,6 +42,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   int _selectedDayIndex = 0; // 0 = Sat, 6 = Fri (matching BD/ME week start)
   List<ScheduleBlock> _allBlocks = [];
   bool _isLoading = true;
+  bool _hasLoadedOnce = false;
 
   final List<String> _days = ['SAT', 'SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI'];
   final List<String> _fullDayNames = [
@@ -57,7 +58,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchDirectives();
+    _fetchDirectives(showLoader: true);
     AppRefreshBus.notifier.addListener(_handleGlobalRefresh);
   }
 
@@ -72,8 +73,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     _fetchDirectives();
   }
 
-  Future<void> _fetchDirectives() async {
-    setState(() => _isLoading = true);
+  Future<void> _fetchDirectives({bool showLoader = false}) async {
+    if (showLoader && !_hasLoadedOnce) {
+      setState(() => _isLoading = true);
+    }
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) throw Exception('No session found');
@@ -114,6 +117,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         setState(() {
           _allBlocks = loaded;
           _isLoading = false;
+          _hasLoadedOnce = true;
         });
       }
     } catch (e) {
@@ -379,7 +383,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         children: [
           _buildDaySelector(),
           Expanded(
-            child: _isLoading
+            child: (_isLoading && !_hasLoadedOnce)
                 ? Center(
                     child: CircularProgressIndicator(color: context.themeColors.electricBlue),
                   )

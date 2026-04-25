@@ -78,12 +78,13 @@ class _SkillsScreenState extends State<SkillsScreen> {
 
   List<SkillItem> _skills = [];
   bool _isLoading = true;
+  bool _hasLoadedOnce = false;
   String? _loadError;
 
   @override
   void initState() {
     super.initState();
-    _fetchSkills();
+    _fetchSkills(showLoader: true);
     AppRefreshBus.notifier.addListener(_handleGlobalRefresh);
   }
 
@@ -123,12 +124,16 @@ class _SkillsScreenState extends State<SkillsScreen> {
     return created;
   }
 
-  Future<void> _fetchSkills() async {
+  Future<void> _fetchSkills({bool showLoader = false}) async {
     if (!mounted) return;
-    setState(() {
-      _isLoading = true;
+    if (showLoader && !_hasLoadedOnce) {
+      setState(() {
+        _isLoading = true;
+        _loadError = null;
+      });
+    } else {
       _loadError = null;
-    });
+    }
 
     try {
       final user = Supabase.instance.client.auth.currentUser;
@@ -157,6 +162,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
       setState(() {
         _skills = skills;
         _isLoading = false;
+        _hasLoadedOnce = true;
       });
     } catch (e) {
       if (!mounted) return;
@@ -468,7 +474,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
         foregroundColor: Colors.black,
         child: const Icon(Icons.add),
       ),
-      body: _isLoading
+      body: (_isLoading && !_hasLoadedOnce)
           ? Center(child: CircularProgressIndicator(color: context.themeColors.gold))
           : _loadError != null
               ? _buildErrorState()

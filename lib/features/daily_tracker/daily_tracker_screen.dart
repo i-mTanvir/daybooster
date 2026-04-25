@@ -25,6 +25,7 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
   // Map<directiveId, log row from daily_logs>
   final Map<String, Map<String, dynamic>> _logs = {};
   bool _isLoading = true;
+  bool _hasLoadedOnce = false;
   late DateTime _today;
   late int _todayDayIndex;
   late String _todayDateStr;
@@ -36,7 +37,7 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
     _today = DateTime.now();
     _todayDayIndex = _getDayIndex(_today);
     _todayDateStr = _formatDate(_today);
-    _fetchData();
+    _fetchData(showLoader: true);
     _scheduleMidnightRefresh();
     AppRefreshBus.notifier.addListener(_handleGlobalRefresh);
   }
@@ -78,8 +79,10 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
     });
   }
 
-  Future<void> _fetchData() async {
-    setState(() => _isLoading = true);
+  Future<void> _fetchData({bool showLoader = false}) async {
+    if (showLoader && !_hasLoadedOnce) {
+      setState(() => _isLoading = true);
+    }
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) throw Exception('No session');
@@ -126,6 +129,7 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
             ..clear()
             ..addAll(logs);
           _isLoading = false;
+          _hasLoadedOnce = true;
         });
       }
     } catch (e) {
@@ -241,7 +245,7 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
           ],
         ),
       ),
-      body: _isLoading
+      body: (_isLoading && !_hasLoadedOnce)
           ? Center(child: CircularProgressIndicator(color: colors.neonGreen))
           : _directives.isEmpty
               ? RefreshIndicator(

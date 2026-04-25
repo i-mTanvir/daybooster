@@ -38,6 +38,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   late DayData _todayData;
   bool _isLoading = true;
+  bool _hasLoadedOnce = false;
   String? _loadError;
   List<_PrayerStatusItem> _prayerItems = [];
 
@@ -76,7 +77,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     )..repeat(reverse: true);
 
     AppRefreshBus.notifier.addListener(_handleGlobalRefresh);
-    _loadTodayData();
+    _loadTodayData(showLoader: true);
   }
 
   @override
@@ -117,12 +118,16 @@ class _DashboardScreenState extends State<DashboardScreen>
     return emoji == '🕌' || prayerKeywords.any(name.contains);
   }
 
-  Future<void> _loadTodayData() async {
+  Future<void> _loadTodayData({bool showLoader = false}) async {
     if (!mounted) return;
-    setState(() {
-      _isLoading = true;
+    if (showLoader && !_hasLoadedOnce) {
+      setState(() {
+        _isLoading = true;
+        _loadError = null;
+      });
+    } else {
       _loadError = null;
-    });
+    }
 
     try {
       final user = Supabase.instance.client.auth.currentUser;
@@ -230,6 +235,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         _todayData = DayData(date: now, tasks: tasks);
         _prayerItems = prayerItems;
         _isLoading = false;
+        _hasLoadedOnce = true;
       });
 
       if (_todayData.dayScore >= 130) {
@@ -240,8 +246,10 @@ class _DashboardScreenState extends State<DashboardScreen>
       setState(() {
         _isLoading = false;
         _loadError = e.toString();
-        _todayData = DayData(date: DateTime.now(), tasks: []);
-        _prayerItems = [];
+        if (!_hasLoadedOnce) {
+          _todayData = DayData(date: DateTime.now(), tasks: []);
+          _prayerItems = [];
+        }
       });
     }
   }
@@ -309,7 +317,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
             ),
           ),
-          if (_isLoading)
+          if (_isLoading && !_hasLoadedOnce)
             Container(
               color: context.themeColors.bg.withValues(alpha: 0.65),
               child: Center(

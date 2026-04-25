@@ -17,6 +17,7 @@ class WeeklyReportScreen extends StatefulWidget {
 
 class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
   bool _isLoading = true;
+  bool _hasLoadedOnce = false;
   String? _loadError;
 
   double _weeklyAverage = 0;
@@ -26,7 +27,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
   @override
   void initState() {
     super.initState();
-    _loadWeeklyData();
+    _loadWeeklyData(showLoader: true);
     AppRefreshBus.notifier.addListener(_handleGlobalRefresh);
   }
 
@@ -88,12 +89,16 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
     }
   }
 
-  Future<void> _loadWeeklyData() async {
+  Future<void> _loadWeeklyData({bool showLoader = false}) async {
     if (!mounted) return;
-    setState(() {
-      _isLoading = true;
+    if (showLoader && !_hasLoadedOnce) {
+      setState(() {
+        _isLoading = true;
+        _loadError = null;
+      });
+    } else {
       _loadError = null;
-    });
+    }
 
     try {
       final user = Supabase.instance.client.auth.currentUser;
@@ -292,6 +297,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
         _days = builtDays;
         _badges = badges;
         _isLoading = false;
+        _hasLoadedOnce = true;
       });
     } catch (e) {
       if (!mounted) return;
@@ -322,7 +328,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
         ),
         centerTitle: false,
       ),
-      body: _isLoading
+      body: (_isLoading && !_hasLoadedOnce)
           ? Center(child: CircularProgressIndicator(color: context.themeColors.neonPurple))
           : _loadError != null
               ? _buildErrorState()

@@ -21,6 +21,7 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
   late AnimationController _navController;
   late PageController _pageController;
   String _architectName = 'Architect';
+  late List<Widget> _screens;
 
   final List<_NavItem> _navItems = const [
     _NavItem(icon: Icons.grid_view_rounded, label: 'DASHBOARD'),
@@ -38,6 +39,13 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 300),
     )..forward();
     _pageController = PageController(initialPage: _currentIndex);
+    _screens = [
+      _KeepAlivePage(child: DashboardScreen(architectName: _architectName)),
+      const _KeepAlivePage(child: DailyTrackerScreen()),
+      const _KeepAlivePage(child: ScheduleScreen()),
+      const _KeepAlivePage(child: WeeklyReportScreen()),
+      const _KeepAlivePage(child: SkillsScreen()),
+    ];
     _loadArchitectName();
   }
 
@@ -76,13 +84,23 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
           : ((metadataName?.trim().isNotEmpty ?? false) ? metadataName!.trim() : 'Architect');
 
       if (mounted) {
-        setState(() => _architectName = resolvedName);
+        setState(() {
+          _architectName = resolvedName;
+          _screens[0] = _KeepAlivePage(
+            child: DashboardScreen(architectName: _architectName),
+          );
+        });
       }
     } catch (_) {
       final user = Supabase.instance.client.auth.currentUser;
       final fallback = user?.userMetadata?['name'] as String?;
       if (mounted && fallback != null && fallback.trim().isNotEmpty) {
-        setState(() => _architectName = fallback.trim());
+        setState(() {
+          _architectName = fallback.trim();
+          _screens[0] = _KeepAlivePage(
+            child: DashboardScreen(architectName: _architectName),
+          );
+        });
       }
     }
   }
@@ -90,14 +108,6 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final screens = [
-      DashboardScreen(architectName: _architectName),
-      const DailyTrackerScreen(),
-      const ScheduleScreen(),
-      const WeeklyReportScreen(),
-      const SkillsScreen(),
-    ];
-
     return Scaffold(
       backgroundColor: context.themeColors.bg,
       body: PageView(
@@ -109,7 +119,7 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
             setState(() => _currentIndex = index);
           }
         },
-        children: screens,
+        children: _screens,
       ),
       bottomNavigationBar: _buildBottomNav(),
     );
@@ -223,5 +233,25 @@ class _NavItem {
   final IconData icon;
   final String label;
   const _NavItem({required this.icon, required this.label});
+}
+
+class _KeepAlivePage extends StatefulWidget {
+  final Widget child;
+  const _KeepAlivePage({required this.child});
+
+  @override
+  State<_KeepAlivePage> createState() => _KeepAlivePageState();
+}
+
+class _KeepAlivePageState extends State<_KeepAlivePage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
+  }
 }
 
