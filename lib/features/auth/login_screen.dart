@@ -55,10 +55,14 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       // AppRouter will automatically detect the auth change and navigate to MainShell
     } catch (e) {
+      final raw = e.toString();
+      final msg = raw.contains('Failed host lookup') || raw.contains('SocketException')
+          ? 'No internet/DNS connection. Please enable data or Wi-Fi and try again.'
+          : raw;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text(msg),
             backgroundColor: context.themeColors.neonRed,
           ),
         );

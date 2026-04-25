@@ -1,6 +1,6 @@
 {
-    "name": "daybooster",
-    "short_name": "daybooster",
+    "name": "Day Booster",
+    "short_name": "Day Booster",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
