@@ -1,7 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/data/offline_sync_service.dart';
 import '../../core/state/app_refresh_bus.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/glow_card.dart';
@@ -78,15 +80,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       setState(() => _isLoading = true);
     }
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) throw Exception('No session found');
-
-      final response = await Supabase.instance.client
-          .from('directives')
-          .select()
-          .eq('user_id', user.id);
-
-      final List<dynamic> data = response as List<dynamic>? ?? [];
+      final List<dynamic> data = OfflineSyncService.instance.getDirectivesLocal();
       final List<ScheduleBlock> loaded = data.map<ScheduleBlock>((dynamic rowMap) {
         final row = rowMap as Map<String, dynamic>;
         
@@ -120,6 +114,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           _hasLoadedOnce = true;
         });
       }
+      unawaited(OfflineSyncService.instance.syncNow());
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -183,7 +178,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       );
 
       if (confirm != true) return;
-      await Supabase.instance.client.from('directives').delete().eq('id', block.id);
+      await OfflineSyncService.instance.deleteDirective(block.id);
     } else {
       String deleteMode = 'day_only';
       final confirm = await showDialog<bool>(
@@ -268,16 +263,16 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       if (confirm != true) return;
 
       if (deleteMode == 'all_days') {
-        await Supabase.instance.client.from('directives').delete().eq('id', block.id);
+        await OfflineSyncService.instance.deleteDirective(block.id);
       } else {
         final updatedDays = activeDays.where((d) => d != _selectedDayIndex).toList();
         if (updatedDays.isEmpty) {
-          await Supabase.instance.client.from('directives').delete().eq('id', block.id);
+          await OfflineSyncService.instance.deleteDirective(block.id);
         } else {
-          await Supabase.instance.client
-              .from('directives')
-              .update({'active_days': updatedDays})
-              .eq('id', block.id);
+          await OfflineSyncService.instance.updateDirective(
+            block.id,
+            {'active_days': updatedDays},
+          );
         }
       }
     }

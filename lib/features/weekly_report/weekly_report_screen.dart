@@ -1,8 +1,10 @@
-﻿import 'package:flutter/material.dart';
+import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/data/offline_sync_service.dart';
 import '../../core/state/app_refresh_bus.dart';
 import '../../core/models/vibe_character.dart';
 import '../../core/theme/app_theme.dart';
@@ -54,20 +56,20 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
     final name = (directive['name'] as String? ?? '').toLowerCase();
     final emoji = (directive['category_emoji'] as String? ?? '').trim();
     const prayerKeywords = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha', 'prayer', 'namaz'];
-    return emoji == '??' || prayerKeywords.any(name.contains);
+    return emoji == '\u{1F54C}' || prayerKeywords.any(name.contains);
   }
 
   bool _looksLikeWorkout(Map<String, dynamic> directive) {
     final name = (directive['name'] as String? ?? '').toLowerCase();
     final emoji = (directive['category_emoji'] as String? ?? '').trim();
     const workoutKeywords = ['workout', 'gym', 'exercise', 'training'];
-    return emoji == '???' || workoutKeywords.any(name.contains);
+    return emoji == '\u{1F3CB}\u{FE0F}' || workoutKeywords.any(name.contains);
   }
 
   bool _looksLikeSleep(Map<String, dynamic> directive) {
     final name = (directive['name'] as String? ?? '').toLowerCase();
     final emoji = (directive['category_emoji'] as String? ?? '').trim();
-    return emoji == '??' || name.contains('sleep');
+    return emoji == '\u{1F634}' || name.contains('sleep');
   }
 
   double _percentageForDirective(Map<String, dynamic> directive, Map<String, dynamic>? log) {
@@ -101,8 +103,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
     }
 
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) throw Exception('No active session found.');
+      
 
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
@@ -111,11 +112,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
       final rangeStart = _formatDate(weekDays.first);
       final rangeEnd = _formatDate(weekDays.last);
 
-      final directivesResponse = await Supabase.instance.client
-          .from('directives')
-          .select()
-          .eq('user_id', user.id);
-      final directives = (directivesResponse as List<dynamic>).cast<Map<String, dynamic>>();
+      final directives = OfflineSyncService.instance.getDirectivesLocal();
 
       final directiveIds = directives
           .map((d) => d['id']?.toString())
@@ -124,38 +121,19 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
 
       final Map<String, Map<String, Map<String, dynamic>>> logsByDateDirective = {};
       if (directiveIds.isNotEmpty) {
-        final logsResponse = await Supabase.instance.client
-            .from('daily_logs')
-            .select()
-            .eq('user_id', user.id)
-            .gte('log_date', rangeStart)
-            .lte('log_date', rangeEnd)
-            .inFilter('directive_id', directiveIds);
-
-        for (final row in (logsResponse as List<dynamic>).cast<Map<String, dynamic>>()) {
+        final localLogs = OfflineSyncService.instance.getDailyLogsLocal();
+        for (final row in localLogs) {
           final dateKey = row['log_date']?.toString();
           final directiveId = row['directive_id']?.toString();
           if (dateKey == null || directiveId == null) continue;
+          if (!directiveIds.contains(directiveId)) continue;
+          if (dateKey.compareTo(rangeStart) < 0 || dateKey.compareTo(rangeEnd) > 0) continue;
           logsByDateDirective.putIfAbsent(dateKey, () => {});
           logsByDateDirective[dateKey]![directiveId] = row;
         }
       }
 
-      final summariesResponse = await Supabase.instance.client
-          .from('daily_summaries')
-          .select('summary_date, day_score')
-          .eq('user_id', user.id)
-          .gte('summary_date', rangeStart)
-          .lte('summary_date', rangeEnd);
-
       final summaryByDate = <String, double>{};
-      for (final row in (summariesResponse as List<dynamic>).cast<Map<String, dynamic>>()) {
-        final dateKey = row['summary_date']?.toString();
-        final score = (row['day_score'] as num?)?.toDouble();
-        if (dateKey != null && score != null) {
-          summaryByDate[dateKey] = score;
-        }
-      }
 
       final builtDays = <Map<String, dynamic>>[];
       final workoutDoneDays = <String>{};
@@ -299,6 +277,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
         _isLoading = false;
         _hasLoadedOnce = true;
       });
+      unawaited(OfflineSyncService.instance.syncNow());
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -710,4 +689,5 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
         );
   }
 }
+
 

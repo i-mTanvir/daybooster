@@ -3,8 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/data/offline_sync_service.dart';
 import '../../core/state/app_refresh_bus.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/glow_card.dart';
@@ -136,20 +136,15 @@ class _SkillsScreenState extends State<SkillsScreen> {
     }
 
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) throw Exception('No active session found.');
-
-      final response = await Supabase.instance.client
-          .from('skills')
-          .select()
-          .eq('user_id', user.id)
-          .order('day_index', ascending: true)
-          .order('created_at', ascending: true);
-
-      final skills = (response as List<dynamic>)
-          .cast<Map<String, dynamic>>()
+      final skills = OfflineSyncService.instance
+          .getSkillsLocal()
           .map(SkillItem.fromMap)
-          .toList();
+          .toList()
+        ..sort((a, b) {
+          final day = a.dayIndex.compareTo(b.dayIndex);
+          if (day != 0) return day;
+          return a.id.compareTo(b.id);
+        });
 
       final activeIds = skills.map((s) => s.id).toSet();
       final disposedIds = _noteControllers.keys.where((id) => !activeIds.contains(id)).toList();
@@ -164,6 +159,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
         _isLoading = false;
         _hasLoadedOnce = true;
       });
+      unawaited(OfflineSyncService.instance.syncNow());
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -175,10 +171,10 @@ class _SkillsScreenState extends State<SkillsScreen> {
 
   Future<void> _saveNote(String skillId, String note) async {
     try {
-      await Supabase.instance.client
-          .from('skills')
-          .update({'note': note, 'updated_at': DateTime.now().toUtc().toIso8601String()})
-          .eq('id', skillId);
+      await OfflineSyncService.instance.updateSkill(skillId, {
+        'note': note,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      });
 
       final idx = _skills.indexWhere((s) => s.id == skillId);
       if (idx >= 0 && mounted) {
@@ -186,7 +182,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
           _skills[idx] = _skills[idx].copyWith(note: note);
         });
       }
-      AppRefreshBus.bump();
+      unawaited(OfflineSyncService.instance.syncNow());
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -382,19 +378,17 @@ class _SkillsScreenState extends State<SkillsScreen> {
 
   Future<void> _createSkill(Map<String, dynamic> data) async {
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) throw Exception('No active session found.');
-
-      await Supabase.instance.client.from('skills').insert({
-        'user_id': user.id,
+      await OfflineSyncService.instance.upsertSkill({
         'name': data['name'],
         'prompt': data['prompt'],
         'emoji': data['emoji'],
         'day_index': data['day_index'],
         'note': '',
+        'created_at': DateTime.now().toUtc().toIso8601String(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
       });
 
-      AppRefreshBus.bump();
+      unawaited(OfflineSyncService.instance.syncNow());
       await _fetchSkills();
     } catch (e) {
       if (!mounted) return;
@@ -409,15 +403,15 @@ class _SkillsScreenState extends State<SkillsScreen> {
 
   Future<void> _updateSkill(String skillId, Map<String, dynamic> data) async {
     try {
-      await Supabase.instance.client.from('skills').update({
+      await OfflineSyncService.instance.updateSkill(skillId, {
         'name': data['name'],
         'prompt': data['prompt'],
         'emoji': data['emoji'],
         'day_index': data['day_index'],
         'updated_at': DateTime.now().toUtc().toIso8601String(),
-      }).eq('id', skillId);
+      });
 
-      AppRefreshBus.bump();
+      unawaited(OfflineSyncService.instance.syncNow());
       await _fetchSkills();
     } catch (e) {
       if (!mounted) return;
@@ -432,10 +426,10 @@ class _SkillsScreenState extends State<SkillsScreen> {
 
   Future<void> _deleteSkill(String skillId) async {
     try {
-      await Supabase.instance.client.from('skills').delete().eq('id', skillId);
+      await OfflineSyncService.instance.deleteSkill(skillId);
       _noteControllers.remove(skillId)?.dispose();
       _saveDebounceTimers.remove(skillId)?.cancel();
-      AppRefreshBus.bump();
+      unawaited(OfflineSyncService.instance.syncNow());
       await _fetchSkills();
     } catch (e) {
       if (!mounted) return;

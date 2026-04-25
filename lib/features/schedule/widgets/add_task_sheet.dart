@@ -1,9 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../core/state/app_refresh_bus.dart';
+import '../../../core/data/offline_sync_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glow_card.dart';
 
@@ -121,17 +122,12 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
 
   Future<void> _loadCategoryEmojisFromDb() async {
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
-
-      final response = await Supabase.instance.client
-          .from('directives')
-          .select('category_emoji')
-          .eq('user_id', user.id);
+      final response = OfflineSyncService.instance.getDirectivesLocal();
+      unawaited(OfflineSyncService.instance.syncNow());
 
       final seen = <String>{};
       final emojis = <String>[];
-      for (final row in (response as List<dynamic>).cast<Map<String, dynamic>>()) {
+      for (final row in response) {
         final emoji = (row['category_emoji'] as String?)?.trim();
         if (emoji == null || emoji.isEmpty) continue;
         if (seen.add(emoji)) {
@@ -166,9 +162,6 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
 
     setState(() => _isSaving = true);
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) throw Exception('No active session found.');
-
       final categories = _getCategories(context.themeColors);
       final selectedCategory = categories.firstWhere(
         (c) => c['emoji'] == _selectedCategoryEmoji,
@@ -201,16 +194,12 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       if (widget.isEditMode) {
         // UPDATE existing row
         final directiveId = widget.existingDirective!['id'] as String;
-        await Supabase.instance.client
-            .from('directives')
-            .update(payload)
-            .eq('id', directiveId);
+        await OfflineSyncService.instance.updateDirective(directiveId, payload);
       } else {
         // INSERT new row
-        payload['user_id'] = user.id;
-        await Supabase.instance.client.from('directives').insert(payload);
+        await OfflineSyncService.instance.upsertDirective(payload);
       }
-      AppRefreshBus.bump();
+      unawaited(OfflineSyncService.instance.syncNow());
 
       HapticFeedback.heavyImpact();
       if (mounted) {

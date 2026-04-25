@@ -20,17 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _cycleTheme(AppThemeType themeType) {
     HapticFeedback.lightImpact();
-    switch (themeType) {
-      case AppThemeType.dark:
-        AppTheme.themeNotifier.value = AppThemeType.cream;
-        break;
-      case AppThemeType.cream:
-        AppTheme.themeNotifier.value = AppThemeType.lime;
-        break;
-      case AppThemeType.lime:
-        AppTheme.themeNotifier.value = AppThemeType.dark;
-        break;
-    }
+    AppTheme.setTheme(AppTheme.nextTheme(themeType));
   }
 
   ({IconData icon, Color color}) _themeVisual(AppThemeType themeType, AppThemeColors colors) {

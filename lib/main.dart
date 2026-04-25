@@ -1,12 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/data/offline_sync_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/login_screen.dart';
 import 'features/shell/main_shell.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  await AppTheme.initialize();
 
   // Force portrait orientation
   await SystemChrome.setPreferredOrientations([
@@ -72,6 +78,9 @@ class _AppRouterState extends State<AppRouter> {
       final session = data.session;
       if (session?.user != null) {
         _ensureProfileExists(session!.user);
+        unawaited(OfflineSyncService.instance.initForUser(session.user.id));
+      } else {
+        unawaited(OfflineSyncService.instance.stop());
       }
       setState(() {
         _isAuthenticated = session != null;
@@ -84,6 +93,7 @@ class _AppRouterState extends State<AppRouter> {
     final session = Supabase.instance.client.auth.currentSession;
     if (session?.user != null) {
       _ensureProfileExists(session!.user);
+      unawaited(OfflineSyncService.instance.initForUser(session.user.id));
     }
     setState(() {
       _isAuthenticated = session != null;

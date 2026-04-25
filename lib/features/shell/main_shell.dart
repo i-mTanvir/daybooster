@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/data/offline_sync_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../daily_tracker/daily_tracker_screen.dart';
@@ -71,11 +74,8 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return;
 
-      final profile = await Supabase.instance.client
-          .from('profiles')
-          .select('architect_name')
-          .eq('id', user.id)
-          .maybeSingle();
+      final profile = OfflineSyncService.instance.getProfileLocal();
+      unawaited(OfflineSyncService.instance.syncNow());
 
       final profileName = profile?['architect_name'] as String?;
       final metadataName = user.userMetadata?['name'] as String?;

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/data/offline_sync_service.dart';
 import '../../core/state/app_refresh_bus.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/glow_card.dart';
@@ -84,16 +84,7 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
       setState(() => _isLoading = true);
     }
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) throw Exception('No session');
-
-      // 1. Fetch all directives for the user
-      final directivesRes = await Supabase.instance.client
-          .from('directives')
-          .select()
-          .eq('user_id', user.id);
-
-      final all = (directivesRes as List<dynamic>).cast<Map<String, dynamic>>();
+      final all = OfflineSyncService.instance.getDirectivesLocal();
 
       // 2. Filter to today's day
       final todays = all.where((d) {
@@ -111,13 +102,13 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
       final Map<String, Map<String, dynamic>> logs = {};
 
       if (directiveIds.isNotEmpty) {
-        final logsRes = await Supabase.instance.client
-            .from('daily_logs')
-            .select()
-            .eq('log_date', _todayDateStr)
-            .inFilter('directive_id', directiveIds);
-
-        for (final row in (logsRes as List<dynamic>).cast<Map<String, dynamic>>()) {
+        final allLogs = OfflineSyncService.instance.getDailyLogsLocal();
+        for (final row in allLogs) {
+          if (row['log_date']?.toString() != _todayDateStr) continue;
+          final directiveId = row['directive_id']?.toString();
+          if (directiveId == null || !directiveIds.contains(directiveId)) {
+            continue;
+          }
           logs[row['directive_id'] as String] = row;
         }
       }
@@ -132,6 +123,7 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
           _hasLoadedOnce = true;
         });
       }
+      unawaited(OfflineSyncService.instance.syncNow());
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -145,27 +137,17 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
   /// UPSERT a log entry. Uses the unique constraint on (directive_id, log_date).
   Future<void> _upsertLog(String directiveId, {bool? isDone, double? progressValue}) async {
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
-
-      final payload = {
-        'user_id': user.id,
-        'directive_id': directiveId,
-        'log_date': _todayDateStr,
-        if (isDone != null) 'is_done': isDone,
-        if (progressValue != null) 'progress_value': progressValue,
-      };
-
-      final res = await Supabase.instance.client
-          .from('daily_logs')
-          .upsert(payload, onConflict: 'directive_id,log_date')
-          .select()
-          .single();
+      final res = await OfflineSyncService.instance.upsertDailyLog(
+        directiveId: directiveId,
+        logDate: _todayDateStr,
+        isDone: isDone,
+        progressValue: progressValue,
+      );
 
       if (mounted) {
         setState(() => _logs[directiveId] = res);
       }
-      AppRefreshBus.bump();
+      unawaited(OfflineSyncService.instance.syncNow());
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

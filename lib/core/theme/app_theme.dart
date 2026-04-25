@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 enum AppThemeType { dark, cream, lime }
 
@@ -201,7 +204,75 @@ class AppColors {
 }
 
 class AppTheme {
+  static const _themeKey = 'app_theme_type_v1';
+  static bool _initialized = false;
   static final ValueNotifier<AppThemeType> themeNotifier = ValueNotifier(AppThemeType.dark);
+
+  static Future<void> initialize() async {
+    if (_initialized) return;
+    _initialized = true;
+
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_themeKey);
+    if (saved != null) {
+      themeNotifier.value = _decodeTheme(saved);
+    }
+
+    themeNotifier.addListener(_persistCurrentTheme);
+  }
+
+  static AppThemeType nextTheme(AppThemeType current) {
+    switch (current) {
+      case AppThemeType.dark:
+        return AppThemeType.cream;
+      case AppThemeType.cream:
+        return AppThemeType.lime;
+      case AppThemeType.lime:
+        return AppThemeType.dark;
+    }
+  }
+
+  static Future<void> setTheme(AppThemeType type) async {
+    if (themeNotifier.value == type) return;
+    themeNotifier.value = type;
+    await _persistTheme(type);
+  }
+
+  static Future<void> cycleTheme() async {
+    await setTheme(nextTheme(themeNotifier.value));
+  }
+
+  static void _persistCurrentTheme() {
+    unawaited(_persistTheme(themeNotifier.value));
+  }
+
+  static Future<void> _persistTheme(AppThemeType type) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_themeKey, _encodeTheme(type));
+  }
+
+  static String _encodeTheme(AppThemeType type) {
+    switch (type) {
+      case AppThemeType.dark:
+        return 'dark';
+      case AppThemeType.cream:
+        return 'cream';
+      case AppThemeType.lime:
+        return 'lime';
+    }
+  }
+
+  static AppThemeType _decodeTheme(String raw) {
+    switch (raw) {
+      case 'cream':
+        return AppThemeType.cream;
+      case 'lime':
+        return AppThemeType.lime;
+      case 'dark':
+      default:
+        return AppThemeType.dark;
+    }
+  }
 
   static ThemeData getThemeData(AppThemeType type) {
     switch (type) {

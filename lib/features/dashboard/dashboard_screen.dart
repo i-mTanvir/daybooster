@@ -1,12 +1,13 @@
-﻿import 'dart:math' as math;
+import 'dart:async';
+import 'dart:math' as math;
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/data/offline_sync_service.dart';
 import '../../core/models/task_entry.dart';
 import '../../core/state/app_refresh_bus.dart';
 import '../../core/theme/app_theme.dart';
@@ -115,7 +116,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       'prayer',
       'namaz'
     ];
-    return emoji == '🕌' || prayerKeywords.any(name.contains);
+    return emoji == '??' || prayerKeywords.any(name.contains);
   }
 
   Future<void> _loadTodayData({bool showLoader = false}) async {
@@ -130,21 +131,13 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
 
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) {
-        throw Exception('No active session found.');
-      }
+      
 
       final now = DateTime.now();
       final dayIndex = _getDayIndex(now);
       final todayDate = _formatDate(now);
 
-      final directivesResponse = await Supabase.instance.client
-          .from('directives')
-          .select()
-          .eq('user_id', user.id);
-      final allDirectives =
-          (directivesResponse as List<dynamic>).cast<Map<String, dynamic>>();
+      final allDirectives = OfflineSyncService.instance.getDirectivesLocal();
 
       final todaysDirectives = allDirectives.where((directive) {
         final days =
@@ -164,16 +157,11 @@ class _DashboardScreenState extends State<DashboardScreen>
 
       final Map<String, Map<String, dynamic>> logsByDirective = {};
       if (directiveIds.isNotEmpty) {
-        final logsResponse = await Supabase.instance.client
-            .from('daily_logs')
-            .select()
-            .eq('log_date', todayDate)
-            .inFilter('directive_id', directiveIds);
-
-        for (final row in (logsResponse as List<dynamic>)
-            .cast<Map<String, dynamic>>()) {
+        final localLogs = OfflineSyncService.instance.getDailyLogsLocal();
+        for (final row in localLogs) {
+          if (row['log_date']?.toString() != todayDate) continue;
           final key = row['directive_id']?.toString();
-          if (key != null) {
+          if (key != null && directiveIds.contains(key)) {
             logsByDirective[key] = row;
           }
         }
@@ -204,7 +192,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           TaskEntry(
             id: directiveId,
             name: directive['name'] as String? ?? 'Untitled',
-            emoji: directive['category_emoji'] as String? ?? '⚡',
+            emoji: directive['category_emoji'] as String? ?? '?',
             type: taskType,
             targetMinutes: taskType == TaskType.binary
                 ? null
@@ -241,6 +229,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (_todayData.dayScore >= 130) {
         _confettiController.play();
       }
+      unawaited(OfflineSyncService.instance.syncNow());
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -666,7 +655,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 Expanded(
                   child: Row(
                     children: [
-                      const Text('🕌', style: TextStyle(fontSize: 16)),
+                      const Text('??', style: TextStyle(fontSize: 16)),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -691,7 +680,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerRight,
                       child: GlowText(
-                        text: '✦ COMPLETE',
+                        text: '? COMPLETE',
                         glowColor: context.themeColors.gold,
                         glowRadius: 8,
                         style: GoogleFonts.orbitron(
@@ -774,7 +763,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           child: Center(
             child: done
                 ? Icon(Icons.star, color: context.themeColors.gold, size: 18)
-                : const Text('🕌', style: TextStyle(fontSize: 18)),
+                : const Text('??', style: TextStyle(fontSize: 18)),
           ),
         ),
         const SizedBox(height: 6),
@@ -831,7 +820,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerRight,
                     child: Text(
-                      'VIEW ALL →',
+                      'VIEW ALL ?',
                       maxLines: 1,
                       style: GoogleFonts.orbitron(
                         color: context.themeColors.electricBlue,
@@ -941,3 +930,4 @@ class _PrayerStatusItem {
     required this.done,
   });
 }
+
