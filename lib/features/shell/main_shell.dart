@@ -131,73 +131,88 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
         ],
       ),
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: _navItems.asMap().entries.map((entry) {
-              final i = entry.key;
-              final item = entry.value;
-              final isSelected = _currentIndex == i;
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isCompact = constraints.maxWidth < 410;
+            final horizontalPadding = isCompact ? 4.0 : 8.0;
+            final itemHorizontalPadding = isCompact ? 6.0 : 12.0;
+            final iconSize = isCompact ? 20.0 : 22.0;
+            final labelSize = isCompact ? 6.5 : 7.0;
 
-              return GestureDetector(
-                onTap: () => _onNavTap(i),
-                behavior: HitTestBehavior.opaque,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: isSelected
-                      ? BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          color: context.themeColors.electricBlue.withValues(alpha: 0.1),
-                          border: Border.all(
-                            color: context.themeColors.electricBlue.withValues(alpha: 0.3),
-                            width: 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: context.themeColors.electricBlue.withValues(alpha: 0.15),
-                              blurRadius: 12,
+            return Padding(
+              padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 8),
+              child: Row(
+                children: _navItems.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final item = entry.value;
+                  final isSelected = _currentIndex == i;
+
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () => _onNavTap(i),
+                      behavior: HitTestBehavior.opaque,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                        padding: EdgeInsets.symmetric(horizontal: itemHorizontalPadding, vertical: 8),
+                        decoration: isSelected
+                            ? BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                color: context.themeColors.electricBlue.withValues(alpha: 0.1),
+                                border: Border.all(
+                                  color: context.themeColors.electricBlue.withValues(alpha: 0.3),
+                                  width: 1,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: context.themeColors.electricBlue.withValues(alpha: 0.15),
+                                    blurRadius: 12,
+                                  ),
+                                ],
+                              )
+                            : null,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AnimatedScale(
+                              scale: isSelected ? 1.15 : 1.0,
+                              duration: const Duration(milliseconds: 300),
+                              child: Icon(
+                                item.icon,
+                                size: iconSize,
+                                color: isSelected
+                                    ? context.themeColors.electricBlue
+                                    : context.themeColors.textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            AnimatedDefaultTextStyle(
+                              duration: const Duration(milliseconds: 300),
+                              style: GoogleFonts.orbitron(
+                                color: isSelected
+                                    ? context.themeColors.electricBlue
+                                    : context.themeColors.textMuted,
+                                fontSize: labelSize,
+                                fontWeight: isSelected
+                                    ? FontWeight.w700
+                                    : FontWeight.w400,
+                                letterSpacing: 1,
+                              ),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(item.label, maxLines: 1),
+                              ),
                             ),
                           ],
-                        )
-                      : null,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AnimatedScale(
-                        scale: isSelected ? 1.2 : 1.0,
-                        duration: const Duration(milliseconds: 300),
-                        child: Icon(
-                          item.icon,
-                          size: 22,
-                          color: isSelected
-                              ? context.themeColors.electricBlue
-                              : context.themeColors.textMuted,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 300),
-                        style: GoogleFonts.orbitron(
-                          color: isSelected
-                              ? context.themeColors.electricBlue
-                              : context.themeColors.textMuted,
-                          fontSize: 7,
-                          fontWeight: isSelected
-                              ? FontWeight.w700
-                              : FontWeight.w400,
-                          letterSpacing: 1,
-                        ),
-                        child: Text(item.label),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            );
+          },
         ),
       ),
     );

@@ -1,17 +1,18 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
+import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:confetti/confetti.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../core/theme/app_theme.dart';
+
 import '../../core/models/task_entry.dart';
 import '../../core/state/app_refresh_bus.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/glow_card.dart';
 import '../../core/widgets/painters.dart';
 import '../profile/profile_screen.dart';
-import '../../core/widgets/glow_card.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String architectName;
@@ -32,7 +33,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   late AnimationController _gridController;
   late AnimationController _scoreController;
   late AnimationController _pulseController;
-  final ConfettiController _confettiController = ConfettiController(duration: const Duration(seconds: 3));
+  final ConfettiController _confettiController =
+      ConfettiController(duration: const Duration(seconds: 3));
 
   late DayData _todayData;
   bool _isLoading = true;
@@ -40,13 +42,13 @@ class _DashboardScreenState extends State<DashboardScreen>
   List<_PrayerStatusItem> _prayerItems = [];
 
   final List<String> _motivationalQuotes = [
-    "You are not building a routine. You are building a legacy.",
-    "Every prayer is armor. Every skill block is a weapon forged.",
-    "Discipline is not a prison. It is a superpower.",
-    "The Architect does not wait for motivation. He creates it.",
-    "Your future self is watching. Don't disappoint him.",
-    "Excellence is not an act. It is a habit.",
-    "Build the system. Trust the process. Become the legend.",
+    'You are not building a routine. You are building a legacy.',
+    'Every prayer is armor. Every skill block is a weapon forged.',
+    'Discipline is not a prison. It is a superpower.',
+    'The Architect does not wait for motivation. He creates it.',
+    'Your future self is watching. Don\'t disappoint him.',
+    'Excellence is not an act. It is a habit.',
+    'Build the system. Trust the process. Become the legend.',
   ];
 
   late String _quote;
@@ -55,7 +57,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   void initState() {
     super.initState();
     _todayData = widget.todayData ?? DayData(date: DateTime.now(), tasks: []);
-    _quote = _motivationalQuotes[math.Random().nextInt(_motivationalQuotes.length)];
+    _quote =
+        _motivationalQuotes[math.Random().nextInt(_motivationalQuotes.length)];
 
     _gridController = AnimationController(
       vsync: this,
@@ -102,7 +105,15 @@ class _DashboardScreenState extends State<DashboardScreen>
   bool _looksLikePrayer(Map<String, dynamic> directive) {
     final name = (directive['name'] as String? ?? '').toLowerCase();
     final emoji = (directive['category_emoji'] as String? ?? '').trim();
-    const prayerKeywords = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha', 'prayer', 'namaz'];
+    const prayerKeywords = [
+      'fajr',
+      'dhuhr',
+      'asr',
+      'maghrib',
+      'isha',
+      'prayer',
+      'namaz'
+    ];
     return emoji == '🕌' || prayerKeywords.any(name.contains);
   }
 
@@ -127,9 +138,12 @@ class _DashboardScreenState extends State<DashboardScreen>
           .from('directives')
           .select()
           .eq('user_id', user.id);
-      final allDirectives = (directivesResponse as List<dynamic>).cast<Map<String, dynamic>>();
+      final allDirectives =
+          (directivesResponse as List<dynamic>).cast<Map<String, dynamic>>();
+
       final todaysDirectives = allDirectives.where((directive) {
-        final days = List<int>.from((directive['active_days'] as List<dynamic>?) ?? []);
+        final days =
+            List<int>.from((directive['active_days'] as List<dynamic>?) ?? []);
         return days.contains(dayIndex);
       }).toList()
         ..sort((a, b) {
@@ -142,8 +156,8 @@ class _DashboardScreenState extends State<DashboardScreen>
           .map((directive) => directive['id']?.toString())
           .whereType<String>()
           .toList();
-      final Map<String, Map<String, dynamic>> logsByDirective = {};
 
+      final Map<String, Map<String, dynamic>> logsByDirective = {};
       if (directiveIds.isNotEmpty) {
         final logsResponse = await Supabase.instance.client
             .from('daily_logs')
@@ -151,7 +165,8 @@ class _DashboardScreenState extends State<DashboardScreen>
             .eq('log_date', todayDate)
             .inFilter('directive_id', directiveIds);
 
-        for (final row in (logsResponse as List<dynamic>).cast<Map<String, dynamic>>()) {
+        for (final row in (logsResponse as List<dynamic>)
+            .cast<Map<String, dynamic>>()) {
           final key = row['directive_id']?.toString();
           if (key != null) {
             logsByDirective[key] = row;
@@ -166,7 +181,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         final directiveId = directive['id']?.toString() ?? '';
         if (directiveId.isEmpty) continue;
 
-        final trackingType = (directive['tracking_type'] as String? ?? 'binary').toLowerCase();
+        final trackingType =
+            (directive['tracking_type'] as String? ?? 'binary').toLowerCase();
         final log = logsByDirective[directiveId];
         final progressValue = (log?['progress_value'] as num?)?.toDouble();
         final isDone = log?['is_done'] as bool?;
@@ -187,7 +203,9 @@ class _DashboardScreenState extends State<DashboardScreen>
             type: taskType,
             targetMinutes: taskType == TaskType.binary
                 ? null
-                : (targetMetric != null && targetMetric > 0 ? targetMetric : durationMinutes),
+                : (targetMetric != null && targetMetric > 0
+                    ? targetMetric
+                    : durationMinutes),
             actualMinutes: taskType == TaskType.binary ? null : progressValue,
             done: taskType == TaskType.binary ? isDone : null,
           ),
@@ -195,7 +213,8 @@ class _DashboardScreenState extends State<DashboardScreen>
 
         if (_looksLikePrayer(directive)) {
           final timeRaw = directive['start_time'] as String?;
-          final timeLabel = (timeRaw != null && timeRaw.length >= 5) ? timeRaw.substring(0, 5) : '--:--';
+          final timeLabel =
+              (timeRaw != null && timeRaw.length >= 5) ? timeRaw.substring(0, 5) : '--:--';
           prayerItems.add(
             _PrayerStatusItem(
               name: directive['name'] as String? ?? 'Prayer',
@@ -235,14 +254,14 @@ class _DashboardScreenState extends State<DashboardScreen>
     final now = _todayData.date;
     final dayName = DateFormat('EEEE').format(now);
     final dateStr = DateFormat('d MMM yyyy').format(now);
-    final completedTasks = _todayData.tasks.where((t) => t.percentage >= 100).length;
+    final completedTasks =
+        _todayData.tasks.where((t) => t.percentage >= 100).length;
     final totalTasks = _todayData.tasks.length;
 
     return Scaffold(
       backgroundColor: context.themeColors.bg,
       body: Stack(
         children: [
-          // Animated cyberpunk grid background
           AnimatedBuilder(
             animation: _gridController,
             builder: (_, __) => CustomPaint(
@@ -250,8 +269,6 @@ class _DashboardScreenState extends State<DashboardScreen>
               size: Size.infinite,
             ),
           ),
-
-          // Radial glow at top-right
           Positioned(
             top: -80,
             right: -60,
@@ -269,8 +286,6 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
             ),
           ),
-
-          // Main content
           SafeArea(
             child: RefreshIndicator(
               onRefresh: _loadTodayData,
@@ -279,49 +294,35 @@ class _DashboardScreenState extends State<DashboardScreen>
                   parent: BouncingScrollPhysics(),
                 ),
                 slivers: [
-                  // Top bar
                   SliverToBoxAdapter(child: _buildTopBar(dayName, dateStr)),
-
-                  // Greeting + Quote
                   SliverToBoxAdapter(child: _buildGreeting()),
-
-                  // Day Score Arc
                   SliverToBoxAdapter(
                     child: _buildDayScoreCard(score, scoreColor, scoreLabel),
                   ),
-
-                  // Quick Stats Row
                   SliverToBoxAdapter(
                     child: _buildQuickStats(completedTasks, totalTasks),
                   ),
-
-                  // Prayer Status
                   SliverToBoxAdapter(child: _buildPrayerStatus()),
-
-                  // Top Tasks Preview
                   SliverToBoxAdapter(child: _buildTopTasksPreview()),
-
-                  // Bottom spacing for nav bar
                   const SliverToBoxAdapter(child: SizedBox(height: 100)),
                 ],
               ),
             ),
           ),
-
           if (_isLoading)
             Container(
               color: context.themeColors.bg.withValues(alpha: 0.65),
               child: Center(
-                child: CircularProgressIndicator(color: context.themeColors.electricBlue),
+                child: CircularProgressIndicator(
+                  color: context.themeColors.electricBlue,
+                ),
               ),
             ),
-
-          // Particle Burst (Confetti) for Legendary Score
           Align(
             alignment: Alignment.topCenter,
             child: ConfettiWidget(
               confettiController: _confettiController,
-              blastDirection: 3.14159 / 2, // Downwards
+              blastDirection: math.pi / 2,
               maxBlastForce: 25,
               minBlastForce: 10,
               emissionFrequency: 0.05,
@@ -375,7 +376,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                 MaterialPageRoute(builder: (context) => const ProfileScreen()),
               );
             },
-            icon: Icon(Icons.person_outline, color: context.themeColors.textPrimary, size: 22),
+            icon: Icon(
+              Icons.person_outline,
+              color: context.themeColors.textPrimary,
+              size: 22,
+            ),
             tooltip: 'Architect Profile',
           ),
         ],
@@ -420,7 +425,8 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
             child: Row(
               children: [
-                Icon(Icons.format_quote, color: context.themeColors.neonPurple, size: 14),
+                Icon(Icons.format_quote,
+                    color: context.themeColors.neonPurple, size: 14),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -472,11 +478,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),
                     color: scoreColor.withValues(alpha: 0.15),
-                    border: Border.all(color: scoreColor.withValues(alpha: 0.4), width: 1),
+                    border: Border.all(
+                        color: scoreColor.withValues(alpha: 0.4), width: 1),
                   ),
                   child: Text(
                     scoreLabel,
@@ -538,42 +546,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                 );
               },
             ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildScaleLegendDot(context.themeColors.perfCritical, '0–39'),
-                _buildScaleLegendDot(context.themeColors.perfWeak, '40–59'),
-                _buildScaleLegendDot(context.themeColors.perfBelowTarget, '60–79'),
-                _buildScaleLegendDot(context.themeColors.perfAlmost, '80–89'),
-                _buildScaleLegendDot(context.themeColors.perfTarget, '90–110'),
-                _buildScaleLegendDot(context.themeColors.perfOverdrive, '111–130'),
-                _buildScaleLegendDot(context.themeColors.perfLegendary, '131+'),
-              ],
-            ),
           ],
         ),
       ),
     ).animate().fadeIn(delay: 400.ms, duration: 800.ms).scale(begin: const Offset(0.95, 0.95));
-  }
-
-  Widget _buildScaleLegendDot(Color color, String label) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 3),
-      child: Column(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: color.withValues(alpha: 0.6), blurRadius: 4)],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildQuickStats(int completed, int total) {
@@ -665,45 +641,61 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Widget _buildPrayerStatus() {
-    final allDone = _prayerItems.isNotEmpty && _prayerItems.every((item) => item.done);
+    final allDone =
+        _prayerItems.isNotEmpty && _prayerItems.every((item) => item.done);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: GlowCard(
-        glowColor: allDone ? context.themeColors.gold : context.themeColors.neonPurple,
+        glowColor:
+            allDone ? context.themeColors.gold : context.themeColors.neonPurple,
         glowing: allDone,
         child: Column(
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Text('🕌', style: const TextStyle(fontSize: 16)),
-                    const SizedBox(width: 8),
-                    Text(
-                      'DAILY PRAYERS',
-                      style: GoogleFonts.orbitron(
-                        color: context.themeColors.textPrimary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.5,
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Text('🕌', style: TextStyle(fontSize: 16)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'DAILY PRAYERS',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.orbitron(
+                            color: context.themeColors.textPrimary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (allDone) ...[
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: GlowText(
+                        text: '✦ COMPLETE',
+                        glowColor: context.themeColors.gold,
+                        glowRadius: 8,
+                        style: GoogleFonts.orbitron(
+                          color: context.themeColors.gold,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.5,
+                        ),
                       ),
                     ),
-                  ],
-                ),
-                if (allDone)
-                  GlowText(
-                    text: '✦ COMPLETE',
-                    glowColor: context.themeColors.gold,
-                    glowRadius: 8,
-                    style: GoogleFonts.orbitron(
-                      color: context.themeColors.gold,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.5,
-                    ),
                   ),
+                ],
               ],
             ),
             const SizedBox(height: 16),
@@ -719,7 +711,6 @@ class _DashboardScreenState extends State<DashboardScreen>
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: _prayerItems.map((prayer) {
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -734,7 +725,10 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
           ],
         ),
-      ).animate(target: allDone ? 1 : 0).shimmer(duration: 2000.ms, color: context.themeColors.gold.withValues(alpha: 0.3)),
+      ).animate(target: allDone ? 1 : 0).shimmer(
+            duration: 2000.ms,
+            color: context.themeColors.gold.withValues(alpha: 0.3),
+          ),
     ).animate().fadeIn(delay: 700.ms, duration: 600.ms).slideY(begin: 0.2, end: 0);
   }
 
@@ -751,26 +745,37 @@ class _DashboardScreenState extends State<DashboardScreen>
           height: 44,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: done ? context.themeColors.gold.withValues(alpha: 0.15) : context.themeColors.bgCardLight,
+            color: done
+                ? context.themeColors.gold.withValues(alpha: 0.15)
+                : context.themeColors.bgCardLight,
             border: Border.all(
-              color: done ? context.themeColors.gold : context.themeColors.borderSubtle,
+              color: done
+                  ? context.themeColors.gold
+                  : context.themeColors.borderSubtle,
               width: done ? 2 : 1,
             ),
             boxShadow: done
-                ? [BoxShadow(color: context.themeColors.gold.withValues(alpha: 0.4), blurRadius: 12)]
+                ? [
+                    BoxShadow(
+                        color:
+                            context.themeColors.gold.withValues(alpha: 0.4),
+                        blurRadius: 12)
+                  ]
                 : [],
           ),
           child: Center(
             child: done
                 ? Icon(Icons.star, color: context.themeColors.gold, size: 18)
-                : Text('🕌', style: const TextStyle(fontSize: 18)),
+                : const Text('🕌', style: TextStyle(fontSize: 18)),
           ),
         ),
         const SizedBox(height: 6),
         Text(
           name,
           style: GoogleFonts.orbitron(
-            color: done ? context.themeColors.gold : context.themeColors.textMuted,
+            color: done
+                ? context.themeColors.gold
+                : context.themeColors.textMuted,
             fontSize: 9,
             fontWeight: FontWeight.w600,
           ),
@@ -842,7 +847,10 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Widget _buildTaskRow(TaskEntry task, int index) {
     final pct = task.percentage;
-    final color = AppColors.getPerformanceColor(pct > 0 ? pct : 0, context.themeColors);
+    final color = AppColors.getPerformanceColor(
+      pct > 0 ? pct : 0,
+      context.themeColors,
+    );
     final hasData = task.actualMinutes != null || task.done != null;
 
     return Padding(
@@ -908,4 +916,3 @@ class _PrayerStatusItem {
     required this.done,
   });
 }
-
