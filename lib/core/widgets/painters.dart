@@ -93,18 +93,19 @@ class ArcScorePainter extends CustomPainter {
 
     // Progress arc
     final sweepAngle = (percentage.clamp(0, 130) / 130) * math.pi * 1.5;
-    final progressPaint = Paint()
-      ..shader = SweepGradient(
-        colors: [color.withValues(alpha: 0.6), color],
-        startAngle: math.pi * 0.75,
-        endAngle: math.pi * 0.75 + sweepAngle,
-        tileMode: TileMode.clamp,
-      ).createShader(Rect.fromCircle(center: center, radius: radius))
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
 
     if (sweepAngle > 0) {
+      final progressPaint = Paint()
+        ..shader = SweepGradient(
+          colors: [color.withValues(alpha: 0.6), color],
+          startAngle: math.pi * 0.75,
+          endAngle: math.pi * 0.75 + sweepAngle,
+          tileMode: TileMode.clamp,
+        ).createShader(Rect.fromCircle(center: center, radius: radius))
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.round;
+
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: radius),
         math.pi * 0.75,
