@@ -19,6 +19,7 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
   int _currentIndex = 0;
   late AnimationController _navController;
+  late PageController _pageController;
   String _architectName = 'Architect';
 
   final List<_NavItem> _navItems = const [
@@ -36,19 +37,25 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 300),
     )..forward();
+    _pageController = PageController(initialPage: _currentIndex);
     _loadArchitectName();
   }
 
   @override
   void dispose() {
     _navController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
   void _onNavTap(int index) {
     if (_currentIndex == index) return;
     HapticFeedback.lightImpact();
-    setState(() => _currentIndex = index);
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeInOut,
+    );
   }
 
   Future<void> _loadArchitectName() async {
@@ -93,16 +100,16 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
 
     return Scaffold(
       backgroundColor: context.themeColors.bg,
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        transitionBuilder: (child, animation) => FadeTransition(
-          opacity: animation,
-          child: child,
-        ),
-        child: KeyedSubtree(
-          key: ValueKey(_currentIndex),
-          child: screens[_currentIndex],
-        ),
+      body: PageView(
+        controller: _pageController,
+        physics: const BouncingScrollPhysics(),
+        onPageChanged: (index) {
+          if (_currentIndex != index) {
+            HapticFeedback.selectionClick();
+            setState(() => _currentIndex = index);
+          }
+        },
+        children: screens,
       ),
       bottomNavigationBar: _buildBottomNav(),
     );

@@ -43,6 +43,15 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   bool _isLoading = true;
 
   final List<String> _days = ['SAT', 'SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI'];
+  final List<String> _fullDayNames = [
+    'Saturday',
+    'Sunday',
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+  ];
 
   @override
   void initState() {
@@ -113,6 +122,225 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     ).then((_) {
       if (mounted) _fetchDirectives();
     });
+  }
+
+  Future<void> _handleDeleteDirective(ScheduleBlock block) async {
+    final activeDays = List<int>.from(block.activeDays);
+    final selectedDayName = _fullDayNames[_selectedDayIndex];
+
+    if (activeDays.length <= 1) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: context.themeColors.bgCard,
+          title: Text(
+            'Delete Task',
+            style: GoogleFonts.orbitron(
+              color: context.themeColors.neonRed,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+            ),
+          ),
+          content: Text(
+            'This task is only for $selectedDayName. Delete it permanently?',
+            style: GoogleFonts.shareTechMono(
+              color: context.themeColors.textPrimary,
+              fontSize: 12,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(
+                'Delete',
+                style: TextStyle(color: context.themeColors.neonRed),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+      await Supabase.instance.client.from('directives').delete().eq('id', block.id);
+    } else {
+      String deleteMode = 'day_only';
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setModalState) => AlertDialog(
+            backgroundColor: context.themeColors.bgCard,
+            title: Text(
+              'Delete Task',
+              style: GoogleFonts.orbitron(
+                color: context.themeColors.neonRed,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'This task is active on multiple days. Choose delete mode:',
+                  style: GoogleFonts.shareTechMono(
+                    color: context.themeColors.textPrimary,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                RadioGroup<String>(
+                  groupValue: deleteMode,
+                  onChanged: (value) => setModalState(() => deleteMode = value ?? 'day_only'),
+                  child: Column(
+                    children: [
+                      RadioListTile<String>(
+                        value: 'day_only',
+                        activeColor: context.themeColors.electricBlue,
+                        title: Text(
+                          'Delete for $selectedDayName only',
+                          style: GoogleFonts.shareTechMono(
+                            color: context.themeColors.textPrimary,
+                            fontSize: 11,
+                          ),
+                        ),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      RadioListTile<String>(
+                        value: 'all_days',
+                        activeColor: context.themeColors.neonRed,
+                        title: Text(
+                          'Delete for other days also',
+                          style: GoogleFonts.shareTechMono(
+                            color: context.themeColors.textPrimary,
+                            fontSize: 11,
+                          ),
+                        ),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(
+                  'Delete',
+                  style: TextStyle(color: context.themeColors.neonRed),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (confirm != true) return;
+
+      if (deleteMode == 'all_days') {
+        await Supabase.instance.client.from('directives').delete().eq('id', block.id);
+      } else {
+        final updatedDays = activeDays.where((d) => d != _selectedDayIndex).toList();
+        if (updatedDays.isEmpty) {
+          await Supabase.instance.client.from('directives').delete().eq('id', block.id);
+        } else {
+          await Supabase.instance.client
+              .from('directives')
+              .update({'active_days': updatedDays})
+              .eq('id', block.id);
+        }
+      }
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Directive updated successfully',
+          style: GoogleFonts.shareTechMono(color: Colors.black),
+        ),
+        backgroundColor: context.themeColors.neonGreen,
+      ),
+    );
+    _fetchDirectives();
+  }
+
+  Future<void> _showDirectiveActions(ScheduleBlock block) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: context.themeColors.bgCard,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: Icon(Icons.edit_outlined, color: context.themeColors.electricBlue),
+                  title: Text(
+                    'Update',
+                    style: GoogleFonts.orbitron(
+                      color: context.themeColors.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  onTap: () => Navigator.pop(context, 'update'),
+                ),
+                ListTile(
+                  leading: Icon(Icons.delete_outline, color: context.themeColors.neonRed),
+                  title: Text(
+                    'Delete',
+                    style: GoogleFonts.orbitron(
+                      color: context.themeColors.neonRed,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  onTap: () => Navigator.pop(context, 'delete'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted || action == null) return;
+
+    if (action == 'update') {
+      _editBlock(block);
+      return;
+    }
+
+    if (action == 'delete') {
+      try {
+        await _handleDeleteDirective(block);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete: $e'),
+            backgroundColor: context.themeColors.neonRed,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -294,7 +522,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             // Card
             Expanded(
               child: GestureDetector(
-                onTap: () => _editBlock(block),
+                onLongPress: () => _showDirectiveActions(block),
                 child: GlowCard(
                   glowing: block.isFocusMode,
                   glowColor: block.glowColor,
@@ -334,11 +562,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                             ),
                           ],
                         ),
-                      ),
-                      Icon(
-                        Icons.edit_outlined,
-                        size: 14,
-                        color: context.themeColors.textMuted.withValues(alpha: 0.5),
                       ),
                     ],
                   ),
