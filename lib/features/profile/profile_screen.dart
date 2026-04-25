@@ -16,6 +16,32 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final user = Supabase.instance.client.auth.currentUser;
 
+  void _cycleTheme(AppThemeType themeType) {
+    HapticFeedback.lightImpact();
+    switch (themeType) {
+      case AppThemeType.dark:
+        AppTheme.themeNotifier.value = AppThemeType.cream;
+        break;
+      case AppThemeType.cream:
+        AppTheme.themeNotifier.value = AppThemeType.lime;
+        break;
+      case AppThemeType.lime:
+        AppTheme.themeNotifier.value = AppThemeType.dark;
+        break;
+    }
+  }
+
+  ({IconData icon, Color color}) _themeVisual(AppThemeType themeType, AppThemeColors colors) {
+    switch (themeType) {
+      case AppThemeType.dark:
+        return (icon: Icons.light_mode_rounded, color: colors.gold);
+      case AppThemeType.cream:
+        return (icon: Icons.eco_rounded, color: colors.neonGreen);
+      case AppThemeType.lime:
+        return (icon: Icons.dark_mode_rounded, color: colors.neonPurple);
+    }
+  }
+
   Future<void> _logout() async {
     HapticFeedback.heavyImpact();
     await Supabase.instance.client.auth.signOut();
@@ -42,6 +68,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
           icon: Icon(Icons.arrow_back, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          ValueListenableBuilder<AppThemeType>(
+            valueListenable: AppTheme.themeNotifier,
+            builder: (context, themeType, _) {
+              final visual = _themeVisual(themeType, colors);
+              return Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: IconButton(
+                  onPressed: () => _cycleTheme(themeType),
+                  icon: Icon(visual.icon, color: visual.color, size: 22),
+                  tooltip: 'Toggle Theme',
+                ),
+              );
+            },
+          ),
+        ],
         title: Text(
           'ARCHITECT HUB',
           style: GoogleFonts.orbitron(

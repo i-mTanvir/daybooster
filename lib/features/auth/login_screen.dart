@@ -18,6 +18,32 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
+  void _cycleTheme(AppThemeType themeType) {
+    HapticFeedback.lightImpact();
+    switch (themeType) {
+      case AppThemeType.dark:
+        AppTheme.themeNotifier.value = AppThemeType.cream;
+        break;
+      case AppThemeType.cream:
+        AppTheme.themeNotifier.value = AppThemeType.lime;
+        break;
+      case AppThemeType.lime:
+        AppTheme.themeNotifier.value = AppThemeType.dark;
+        break;
+    }
+  }
+
+  ({IconData icon, Color color}) _themeVisual(AppThemeType themeType, AppThemeColors colors) {
+    switch (themeType) {
+      case AppThemeType.dark:
+        return (icon: Icons.light_mode_rounded, color: colors.gold);
+      case AppThemeType.cream:
+        return (icon: Icons.eco_rounded, color: colors.neonGreen);
+      case AppThemeType.lime:
+        return (icon: Icons.dark_mode_rounded, color: colors.neonPurple);
+    }
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -58,13 +84,32 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: colors.bg,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+        child: Stack(
+          children: [
+            Align(
+              alignment: Alignment.topRight,
+              child: ValueListenableBuilder<AppThemeType>(
+                valueListenable: AppTheme.themeNotifier,
+                builder: (context, themeType, _) {
+                  final visual = _themeVisual(themeType, colors);
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8, right: 20),
+                    child: IconButton(
+                      onPressed: () => _cycleTheme(themeType),
+                      icon: Icon(visual.icon, color: visual.color, size: 22),
+                      tooltip: 'Toggle Theme',
+                    ),
+                  );
+                },
+              ),
+            ),
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                 Icon(Icons.bolt, size: 80, color: colors.electricBlue)
                     .animate(onPlay: (controller) => controller.repeat(reverse: true))
                     .shimmer(duration: 2.seconds, color: colors.neonPurple),
@@ -146,11 +191,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-              ],
-            ).animate().fadeIn(duration: 800.ms).slideY(begin: 0.1),
+                  ],
+                ).animate().fadeIn(duration: 800.ms).slideY(begin: 0.1),
+              ),
+            ),
+          ],
           ),
         ),
-      ),
     );
   }
 
