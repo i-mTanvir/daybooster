@@ -448,6 +448,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           ],
         ),
         child: FloatingActionButton(
+          heroTag: 'schedule_fab',
           onPressed: () {
             showModalBottomSheet(
               context: context,

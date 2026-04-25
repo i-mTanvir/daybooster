@@ -469,6 +469,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
         centerTitle: false,
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'skills_fab',
         onPressed: () => _openSkillForm(),
         backgroundColor: context.themeColors.gold,
         foregroundColor: Colors.black,
