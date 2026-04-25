@@ -145,14 +145,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      // Meta Grid
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildMetaItem('AGE', age, colors),
-                          Container(width: 1, height: 40, color: colors.borderSubtle),
-                          _buildMetaItem('PHONE', phone, colors),
-                        ],
+                      // Responsive Meta Grid
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isCompact = constraints.maxWidth < 330;
+                          if (isCompact) {
+                            return Column(
+                              children: [
+                                _buildMetaItem('AGE', age, colors),
+                                const SizedBox(height: 14),
+                                Container(
+                                  width: 140,
+                                  height: 1,
+                                  color: colors.borderSubtle,
+                                ),
+                                const SizedBox(height: 14),
+                                _buildMetaItem('PHONE', phone, colors),
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              _buildMetaItem('AGE', age, colors),
+                              Container(width: 1, height: 40, color: colors.borderSubtle),
+                              _buildMetaItem('PHONE', phone, colors),
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -236,12 +257,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildMetaItem(String label, String value, AppThemeColors colors) {
     return Column(
       children: [
-        Text(
-          value,
-          style: GoogleFonts.orbitron(
-            color: colors.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value,
+            maxLines: 1,
+            style: GoogleFonts.orbitron(
+              color: colors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
         Text(

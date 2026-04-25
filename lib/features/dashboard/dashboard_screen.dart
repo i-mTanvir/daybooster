@@ -804,22 +804,34 @@ class _DashboardScreenState extends State<DashboardScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'TODAY\'S QUESTS',
-                  style: GoogleFonts.orbitron(
-                    color: context.themeColors.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.5,
+                Expanded(
+                  child: Text(
+                    'TODAY\'S QUESTS',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.orbitron(
+                      color: context.themeColors.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.5,
+                    ),
                   ),
                 ),
-                Text(
-                  'VIEW ALL →',
-                  style: GoogleFonts.orbitron(
-                    color: context.themeColors.electricBlue,
-                    fontSize: 9,
-                    letterSpacing: 1.5,
-                    fontWeight: FontWeight.w600,
+                const SizedBox(width: 8),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      'VIEW ALL →',
+                      maxLines: 1,
+                      style: GoogleFonts.orbitron(
+                        color: context.themeColors.electricBlue,
+                        fontSize: 9,
+                        letterSpacing: 1.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -866,14 +878,19 @@ class _DashboardScreenState extends State<DashboardScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      task.name,
-                      style: GoogleFonts.orbitron(
-                        color: context.themeColors.textPrimary,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: Text(
+                        task.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.orbitron(
+                          color: context.themeColors.textPrimary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
                       hasData ? '${pct.toStringAsFixed(0)}%' : '--',
                       style: GoogleFonts.shareTechMono(
