@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/models/vibe_character.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/glow_card.dart';
@@ -13,26 +15,279 @@ class WeeklyReportScreen extends StatefulWidget {
 }
 
 class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
-  // Mock data for weekly UI demonstration
-  final double _weeklyAverage = 92.5;
-  final List<Map<String, dynamic>> _days = [
-    {'day': 'Saturday', 'score': 85.0},
-    {'day': 'Sunday', 'score': 92.0},
-    {'day': 'Monday', 'score': 105.0},
-    {'day': 'Tuesday', 'score': 95.0},
-    {'day': 'Wednesday', 'score': 70.0},
-    {'day': 'Thursday', 'score': 88.0},
-    {'day': 'Friday', 'score': 112.5},
-  ];
+  bool _isLoading = true;
+  String? _loadError;
 
-  final List<Map<String, dynamic>> _badges = [
-    {'icon': '🔥', 'name': '5-Day Streak', 'earned': true},
-    {'icon': '🕌', 'name': 'Prayer Warrior', 'earned': false},
-    {'icon': '💪', 'name': 'Iron Body', 'earned': true},
-    {'icon': '🧠', 'name': 'Deep Focus', 'earned': true},
-    {'icon': '👑', 'name': 'Legendary Week', 'earned': false},
-    {'icon': '🌙', 'name': 'Sleep Champ', 'earned': false},
-  ];
+  double _weeklyAverage = 0;
+  List<Map<String, dynamic>> _days = [];
+  List<Map<String, dynamic>> _badges = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWeeklyData();
+  }
+
+  int _getDayIndex(DateTime date) {
+    const dartToApp = {6: 0, 7: 1, 1: 2, 2: 3, 3: 4, 4: 5, 5: 6};
+    return dartToApp[date.weekday] ?? 0;
+  }
+
+  String _formatDate(DateTime date) =>
+      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+  bool _looksLikePrayer(Map<String, dynamic> directive) {
+    final name = (directive['name'] as String? ?? '').toLowerCase();
+    final emoji = (directive['category_emoji'] as String? ?? '').trim();
+    const prayerKeywords = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha', 'prayer', 'namaz'];
+    return emoji == '??' || prayerKeywords.any(name.contains);
+  }
+
+  bool _looksLikeWorkout(Map<String, dynamic> directive) {
+    final name = (directive['name'] as String? ?? '').toLowerCase();
+    final emoji = (directive['category_emoji'] as String? ?? '').trim();
+    const workoutKeywords = ['workout', 'gym', 'exercise', 'training'];
+    return emoji == '???' || workoutKeywords.any(name.contains);
+  }
+
+  bool _looksLikeSleep(Map<String, dynamic> directive) {
+    final name = (directive['name'] as String? ?? '').toLowerCase();
+    final emoji = (directive['category_emoji'] as String? ?? '').trim();
+    return emoji == '??' || name.contains('sleep');
+  }
+
+  double _percentageForDirective(Map<String, dynamic> directive, Map<String, dynamic>? log) {
+    final trackingType = (directive['tracking_type'] as String? ?? 'binary').toLowerCase();
+    switch (trackingType) {
+      case 'progress':
+        final target = ((directive['target_metric'] as num?)?.toDouble() ??
+                (directive['duration_minutes'] as int?)?.toDouble() ??
+                60)
+            .clamp(1, 1000000);
+        final actual = (log?['progress_value'] as num?)?.toDouble() ?? 0;
+        return ((actual / target) * 100).clamp(0, 200);
+      case 'inverse':
+        final used = (log?['progress_value'] as num?)?.toDouble() ?? 0;
+        return (((60 - used) / 60) * 100).clamp(0, 100);
+      case 'binary':
+      default:
+        return (log?['is_done'] as bool?) == true ? 100 : 0;
+    }
+  }
+
+  Future<void> _loadWeeklyData() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
+
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) throw Exception('No active session found.');
+
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final weekStart = today.subtract(Duration(days: _getDayIndex(today)));
+      final weekDays = List.generate(7, (i) => weekStart.add(Duration(days: i)));
+      final rangeStart = _formatDate(weekDays.first);
+      final rangeEnd = _formatDate(weekDays.last);
+
+      final directivesResponse = await Supabase.instance.client
+          .from('directives')
+          .select()
+          .eq('user_id', user.id);
+      final directives = (directivesResponse as List<dynamic>).cast<Map<String, dynamic>>();
+
+      final directiveIds = directives
+          .map((d) => d['id']?.toString())
+          .whereType<String>()
+          .toList();
+
+      final Map<String, Map<String, Map<String, dynamic>>> logsByDateDirective = {};
+      if (directiveIds.isNotEmpty) {
+        final logsResponse = await Supabase.instance.client
+            .from('daily_logs')
+            .select()
+            .eq('user_id', user.id)
+            .gte('log_date', rangeStart)
+            .lte('log_date', rangeEnd)
+            .inFilter('directive_id', directiveIds);
+
+        for (final row in (logsResponse as List<dynamic>).cast<Map<String, dynamic>>()) {
+          final dateKey = row['log_date']?.toString();
+          final directiveId = row['directive_id']?.toString();
+          if (dateKey == null || directiveId == null) continue;
+          logsByDateDirective.putIfAbsent(dateKey, () => {});
+          logsByDateDirective[dateKey]![directiveId] = row;
+        }
+      }
+
+      final summariesResponse = await Supabase.instance.client
+          .from('daily_summaries')
+          .select('summary_date, day_score')
+          .eq('user_id', user.id)
+          .gte('summary_date', rangeStart)
+          .lte('summary_date', rangeEnd);
+
+      final summaryByDate = <String, double>{};
+      for (final row in (summariesResponse as List<dynamic>).cast<Map<String, dynamic>>()) {
+        final dateKey = row['summary_date']?.toString();
+        final score = (row['day_score'] as num?)?.toDouble();
+        if (dateKey != null && score != null) {
+          summaryByDate[dateKey] = score;
+        }
+      }
+
+      final builtDays = <Map<String, dynamic>>[];
+      final workoutDoneDays = <String>{};
+      final sleepDoneDays = <String>{};
+      int prayerDoneTotal = 0;
+      int prayerTaskTotal = 0;
+      int focusCompletedCount = 0;
+
+      for (final day in weekDays) {
+        final dayIndex = _getDayIndex(day);
+        final dateKey = _formatDate(day);
+
+        final dayDirectives = directives.where((directive) {
+          final activeDays = List<int>.from((directive['active_days'] as List<dynamic>?) ?? []);
+          return activeDays.contains(dayIndex);
+        }).toList();
+
+        int doneCount = 0;
+        int missedCount = 0;
+        int progressLoggedCount = 0;
+        int prayerDoneForDay = 0;
+        int prayerTotalForDay = 0;
+        double dayScore = 0;
+
+        if (dayDirectives.isNotEmpty) {
+          double total = 0;
+          for (final directive in dayDirectives) {
+            final id = directive['id']?.toString();
+            if (id == null) continue;
+
+            final log = logsByDateDirective[dateKey]?[id];
+            final pct = _percentageForDirective(directive, log);
+            total += pct;
+
+            if (pct >= 100) {
+              doneCount++;
+            }
+
+            final trackingType = (directive['tracking_type'] as String? ?? 'binary').toLowerCase();
+            if (trackingType == 'binary' && (log?['is_done'] as bool?) == false) {
+              missedCount++;
+            }
+            if (trackingType != 'binary' && ((log?['progress_value'] as num?)?.toDouble() ?? 0) > 0) {
+              progressLoggedCount++;
+            }
+
+            final isDone = pct >= 100;
+            if (_looksLikePrayer(directive)) {
+              prayerTaskTotal++;
+              prayerTotalForDay++;
+              if ((log?['is_done'] as bool?) == true) {
+                prayerDoneTotal++;
+                prayerDoneForDay++;
+              }
+            }
+
+            if (_looksLikeWorkout(directive) && isDone) {
+              workoutDoneDays.add(dateKey);
+            }
+
+            if (_looksLikeSleep(directive) && isDone) {
+              sleepDoneDays.add(dateKey);
+            }
+
+            if ((directive['is_focus_mode'] as bool? ?? false) && isDone) {
+              focusCompletedCount++;
+            }
+          }
+
+          dayScore = total / dayDirectives.length;
+        } else {
+          dayScore = summaryByDate[dateKey] ?? 0;
+        }
+
+        builtDays.add({
+          'day': DateFormat('EEEE').format(day),
+          'date': DateFormat('d MMM').format(day),
+          'score': dayScore,
+          'total': dayDirectives.length,
+          'done': doneCount,
+          'missed': missedCount,
+          'progress': progressLoggedCount,
+          'prayer': '$prayerDoneForDay/$prayerTotalForDay',
+        });
+      }
+
+      final weeklyAverage = builtDays.isEmpty
+          ? 0.0
+          : builtDays.fold<double>(0, (sum, d) => sum + (d['score'] as double)) / builtDays.length;
+
+      int currentStreak = 0;
+      int bestStreak = 0;
+      for (final day in builtDays) {
+        final score = day['score'] as double;
+        if (score >= 90) {
+          currentStreak++;
+          if (currentStreak > bestStreak) bestStreak = currentStreak;
+        } else {
+          currentStreak = 0;
+        }
+      }
+
+      final badges = [
+        {
+          'iconData': Icons.local_fire_department_rounded,
+          'name': '5-Day Streak',
+          'earned': bestStreak >= 5,
+        },
+        {
+          'iconData': Icons.mosque_rounded,
+          'name': 'Prayer Warrior',
+          'earned': prayerTaskTotal > 0 && prayerDoneTotal == prayerTaskTotal,
+        },
+        {
+          'iconData': Icons.fitness_center_rounded,
+          'name': 'Iron Body',
+          'earned': workoutDoneDays.length >= 4,
+        },
+        {
+          'iconData': Icons.psychology_alt_rounded,
+          'name': 'Deep Focus',
+          'earned': focusCompletedCount >= 4,
+        },
+        {
+          'iconData': Icons.workspace_premium_rounded,
+          'name': 'Legendary Week',
+          'earned': weeklyAverage >= 130,
+        },
+        {
+          'iconData': Icons.nightlight_round,
+          'name': 'Sleep Champ',
+          'earned': sleepDoneDays.length >= 5,
+        },
+      ];
+
+      if (!mounted) return;
+      setState(() {
+        _weeklyAverage = weeklyAverage;
+        _days = builtDays;
+        _badges = badges;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _loadError = e.toString();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,47 +308,86 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
           ),
         ),
         centerTitle: false,
+        actions: [
+          IconButton(
+            onPressed: _isLoading ? null : _loadWeeklyData,
+            icon: Icon(Icons.refresh, color: context.themeColors.textMuted),
+            tooltip: 'Refresh',
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.all(20).copyWith(bottom: 100),
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator(color: context.themeColors.neonPurple))
+          : _loadError != null
+              ? _buildErrorState()
+              : SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.all(20).copyWith(bottom: 100),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildAverageHero(character),
+                      const SizedBox(height: 32),
+                      Text(
+                        'ACHIEVEMENTS',
+                        style: GoogleFonts.orbitron(
+                          color: context.themeColors.textSecondary,
+                          fontSize: 12,
+                          letterSpacing: 2,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ).animate().fadeIn(delay: 300.ms),
+                      const SizedBox(height: 12),
+                      _buildBadgesGrid(),
+                      const SizedBox(height: 32),
+                      Text(
+                        'DAY-BY-DAY BREAKDOWN',
+                        style: GoogleFonts.orbitron(
+                          color: context.themeColors.textSecondary,
+                          fontSize: 12,
+                          letterSpacing: 2,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ).animate().fadeIn(delay: 500.ms),
+                      const SizedBox(height: 12),
+                      _buildDailyList(),
+                      const SizedBox(height: 32),
+                      _buildVibeCharacterCard(character),
+                    ],
+                  ),
+                ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Weekly Average Hero
-            _buildAverageHero(character),
-            const SizedBox(height: 32),
-            
-            // Badges Section
             Text(
-              'ACHIEVEMENTS',
+              'FAILED TO LOAD WEEKLY DATA',
               style: GoogleFonts.orbitron(
-                color: context.themeColors.textSecondary,
+                color: context.themeColors.neonRed,
                 fontSize: 12,
-                letterSpacing: 2,
-                fontWeight: FontWeight.w600,
+                letterSpacing: 1.5,
               ),
-            ).animate().fadeIn(delay: 300.ms),
-            const SizedBox(height: 12),
-            _buildBadgesGrid(),
-            const SizedBox(height: 32),
-
-            // Daily Breakdown
+            ),
+            const SizedBox(height: 10),
             Text(
-              'DAY-BY-DAY BREAKDOWN',
-              style: GoogleFonts.orbitron(
-                color: context.themeColors.textSecondary,
-                fontSize: 12,
-                letterSpacing: 2,
-                fontWeight: FontWeight.w600,
+              _loadError ?? 'Unknown error',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.shareTechMono(
+                color: context.themeColors.textMuted,
+                fontSize: 11,
               ),
-            ).animate().fadeIn(delay: 500.ms),
-            const SizedBox(height: 12),
-            _buildDailyList(),
-            const SizedBox(height: 32),
-
-            // Vibe Character Reveal
-            _buildVibeCharacterCard(character),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadWeeklyData,
+              child: const Text('Retry'),
+            ),
           ],
         ),
       ),
@@ -164,8 +458,8 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
         final badge = _badges[index];
         final earned = badge['earned'] as bool;
         return _buildBadge(
-          icon: badge['icon'],
-          name: badge['name'],
+          icon: badge['iconData'] as IconData,
+          name: badge['name'] as String,
           earned: earned,
           delayMs: 400 + (index * 50),
         );
@@ -173,10 +467,10 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
     );
   }
 
-  Widget _buildBadge({required String icon, required String name, required bool earned, required int delayMs}) {
+  Widget _buildBadge({required IconData icon, required String name, required bool earned, required int delayMs}) {
     final color = earned ? context.themeColors.gold : context.themeColors.bgCardLight;
     final borderColor = earned ? context.themeColors.gold : context.themeColors.borderSubtle;
-    
+
     return Container(
       decoration: BoxDecoration(
         color: earned ? color.withValues(alpha: 0.1) : color,
@@ -188,12 +482,10 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
+          Icon(
             icon,
-            style: TextStyle(
-              fontSize: 28,
-              foreground: !earned ? (Paint()..color = Colors.grey.withValues(alpha: 0.3)) : null,
-            ),
+            size: 30,
+            color: earned ? context.themeColors.gold : Colors.grey.withValues(alpha: 0.35),
           ),
           const SizedBox(height: 8),
           Text(
@@ -241,7 +533,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
               ),
             ),
             title: Text(
-              day['day'],
+              '${day['day']}  •  ${day['date']}',
               style: GoogleFonts.shareTechMono(
                 color: context.themeColors.textPrimary,
                 fontSize: 14,
@@ -259,13 +551,33 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
             children: [
               Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  'Detailed task breakdown would appear here.\n(Connected to local database)',
-                  style: GoogleFonts.shareTechMono(
-                    color: context.themeColors.textMuted,
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tasks: ${day['done']}/${day['total']} done',
+                      style: GoogleFonts.shareTechMono(
+                        color: context.themeColors.textPrimary,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Missed: ${day['missed']}  •  Progress logs: ${day['progress']}',
+                      style: GoogleFonts.shareTechMono(
+                        color: context.themeColors.textMuted,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Prayers: ${day['prayer']}',
+                      style: GoogleFonts.shareTechMono(
+                        color: context.themeColors.textMuted,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -283,7 +595,6 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header
           Container(
             padding: const EdgeInsets.symmetric(vertical: 16),
             decoration: BoxDecoration(
@@ -325,8 +636,6 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
               ],
             ),
           ),
-          
-          // Visual Description placeholder
           Container(
             height: 120,
             decoration: BoxDecoration(
@@ -343,8 +652,6 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
               child: Icon(Icons.person_outline, size: 64, color: character.color.withValues(alpha: 0.2)),
             ),
           ),
-
-          // Message
           Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -380,7 +687,10 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
           ),
         ],
       ),
-    ).animate(delay: const Duration(milliseconds: 1000)).fadeIn().slideY(begin: 0.2).shimmer(duration: 2500.ms, color: character.color.withValues(alpha: 0.4));
+    ).animate(delay: const Duration(milliseconds: 1000)).fadeIn().slideY(begin: 0.2).shimmer(
+          duration: 2500.ms,
+          color: character.color.withValues(alpha: 0.4),
+        );
   }
 }
 
