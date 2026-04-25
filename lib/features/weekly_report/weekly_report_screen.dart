@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/state/app_refresh_bus.dart';
 import '../../core/models/vibe_character.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/glow_card.dart';
@@ -25,6 +26,18 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
   @override
   void initState() {
     super.initState();
+    _loadWeeklyData();
+    AppRefreshBus.notifier.addListener(_handleGlobalRefresh);
+  }
+
+  @override
+  void dispose() {
+    AppRefreshBus.notifier.removeListener(_handleGlobalRefresh);
+    super.dispose();
+  }
+
+  void _handleGlobalRefresh() {
+    if (!mounted) return;
     _loadWeeklyData();
   }
 
@@ -308,52 +321,50 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
           ),
         ),
         centerTitle: false,
-        actions: [
-          IconButton(
-            onPressed: _isLoading ? null : _loadWeeklyData,
-            icon: Icon(Icons.refresh, color: context.themeColors.textMuted),
-            tooltip: 'Refresh',
-          ),
-        ],
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: context.themeColors.neonPurple))
           : _loadError != null
               ? _buildErrorState()
-              : SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.all(20).copyWith(bottom: 100),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildAverageHero(character),
-                      const SizedBox(height: 32),
-                      Text(
-                        'ACHIEVEMENTS',
-                        style: GoogleFonts.orbitron(
-                          color: context.themeColors.textSecondary,
-                          fontSize: 12,
-                          letterSpacing: 2,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ).animate().fadeIn(delay: 300.ms),
-                      const SizedBox(height: 12),
-                      _buildBadgesGrid(),
-                      const SizedBox(height: 32),
-                      Text(
-                        'DAY-BY-DAY BREAKDOWN',
-                        style: GoogleFonts.orbitron(
-                          color: context.themeColors.textSecondary,
-                          fontSize: 12,
-                          letterSpacing: 2,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ).animate().fadeIn(delay: 500.ms),
-                      const SizedBox(height: 12),
-                      _buildDailyList(),
-                      const SizedBox(height: 32),
-                      _buildVibeCharacterCard(character),
-                    ],
+              : RefreshIndicator(
+                  onRefresh: _loadWeeklyData,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    padding: const EdgeInsets.all(20).copyWith(bottom: 100),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildAverageHero(character),
+                        const SizedBox(height: 32),
+                        Text(
+                          'ACHIEVEMENTS',
+                          style: GoogleFonts.orbitron(
+                            color: context.themeColors.textSecondary,
+                            fontSize: 12,
+                            letterSpacing: 2,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ).animate().fadeIn(delay: 300.ms),
+                        const SizedBox(height: 12),
+                        _buildBadgesGrid(),
+                        const SizedBox(height: 32),
+                        Text(
+                          'DAY-BY-DAY BREAKDOWN',
+                          style: GoogleFonts.orbitron(
+                            color: context.themeColors.textSecondary,
+                            fontSize: 12,
+                            letterSpacing: 2,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ).animate().fadeIn(delay: 500.ms),
+                        const SizedBox(height: 12),
+                        _buildDailyList(),
+                        const SizedBox(height: 32),
+                        _buildVibeCharacterCard(character),
+                      ],
+                    ),
                   ),
                 ),
     );

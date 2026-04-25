@@ -8,6 +8,7 @@ import 'package:confetti/confetti.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/models/task_entry.dart';
+import '../../core/state/app_refresh_bus.dart';
 import '../../core/widgets/painters.dart';
 import '../profile/profile_screen.dart';
 import '../../core/widgets/glow_card.dart';
@@ -70,17 +71,24 @@ class _DashboardScreenState extends State<DashboardScreen>
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
-    
+
+    AppRefreshBus.notifier.addListener(_handleGlobalRefresh);
     _loadTodayData();
   }
 
   @override
   void dispose() {
+    AppRefreshBus.notifier.removeListener(_handleGlobalRefresh);
     _gridController.dispose();
     _scoreController.dispose();
     _pulseController.dispose();
     _confettiController.dispose();
     super.dispose();
+  }
+
+  void _handleGlobalRefresh() {
+    if (!mounted) return;
+    _loadTodayData();
   }
 
   int _getDayIndex(DateTime date) {
@@ -264,34 +272,39 @@ class _DashboardScreenState extends State<DashboardScreen>
 
           // Main content
           SafeArea(
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                // Top bar
-                SliverToBoxAdapter(child: _buildTopBar(dayName, dateStr)),
-
-                // Greeting + Quote
-                SliverToBoxAdapter(child: _buildGreeting()),
-
-                // Day Score Arc
-                SliverToBoxAdapter(
-                  child: _buildDayScoreCard(score, scoreColor, scoreLabel),
+            child: RefreshIndicator(
+              onRefresh: _loadTodayData,
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
                 ),
+                slivers: [
+                  // Top bar
+                  SliverToBoxAdapter(child: _buildTopBar(dayName, dateStr)),
 
-                // Quick Stats Row
-                SliverToBoxAdapter(
-                  child: _buildQuickStats(completedTasks, totalTasks),
-                ),
+                  // Greeting + Quote
+                  SliverToBoxAdapter(child: _buildGreeting()),
 
-                // Prayer Status
-                SliverToBoxAdapter(child: _buildPrayerStatus()),
+                  // Day Score Arc
+                  SliverToBoxAdapter(
+                    child: _buildDayScoreCard(score, scoreColor, scoreLabel),
+                  ),
 
-                // Top Tasks Preview
-                SliverToBoxAdapter(child: _buildTopTasksPreview()),
+                  // Quick Stats Row
+                  SliverToBoxAdapter(
+                    child: _buildQuickStats(completedTasks, totalTasks),
+                  ),
 
-                // Bottom spacing for nav bar
-                const SliverToBoxAdapter(child: SizedBox(height: 100)),
-              ],
+                  // Prayer Status
+                  SliverToBoxAdapter(child: _buildPrayerStatus()),
+
+                  // Top Tasks Preview
+                  SliverToBoxAdapter(child: _buildTopTasksPreview()),
+
+                  // Bottom spacing for nav bar
+                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                ],
+              ),
             ),
           ),
 
@@ -354,68 +367,16 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
             ],
           ),
-          ValueListenableBuilder<AppThemeType>(
-            valueListenable: AppTheme.themeNotifier,
-            builder: (context, themeType, _) {
-              IconData iconData;
-              Color iconColor;
-              
-              switch (themeType) {
-                case AppThemeType.dark:
-                  iconData = Icons.light_mode_rounded;
-                  iconColor = context.themeColors.gold;
-                  break;
-                case AppThemeType.cream:
-                  iconData = Icons.eco_rounded;
-                  iconColor = context.themeColors.neonGreen;
-                  break;
-                case AppThemeType.lime:
-                  iconData = Icons.dark_mode_rounded;
-                  iconColor = context.themeColors.neonPurple;
-                  break;
-              }
-
-              return Row(
-                children: [
-                  IconButton(
-                    onPressed: _isLoading ? null : _loadTodayData,
-                    icon: Icon(Icons.refresh_rounded, color: context.themeColors.textPrimary, size: 22),
-                    tooltip: 'Refresh Dashboard',
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      switch (themeType) {
-                        case AppThemeType.dark:
-                          AppTheme.themeNotifier.value = AppThemeType.cream;
-                          break;
-                        case AppThemeType.cream:
-                          AppTheme.themeNotifier.value = AppThemeType.lime;
-                          break;
-                        case AppThemeType.lime:
-                          AppTheme.themeNotifier.value = AppThemeType.dark;
-                          break;
-                      }
-                    },
-                    icon: Icon(iconData, color: iconColor, size: 22),
-                    tooltip: 'Toggle Theme',
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const ProfileScreen()),
-                      );
-                    },
-                    icon: Icon(Icons.person_outline, color: context.themeColors.textPrimary, size: 22),
-                    tooltip: 'Architect Profile',
-                  ),
-                ],
+          IconButton(
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
               );
-
             },
+            icon: Icon(Icons.person_outline, color: context.themeColors.textPrimary, size: 22),
+            tooltip: 'Architect Profile',
           ),
         ],
       ),

@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/state/app_refresh_bus.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/glow_card.dart';
 
@@ -83,10 +84,12 @@ class _SkillsScreenState extends State<SkillsScreen> {
   void initState() {
     super.initState();
     _fetchSkills();
+    AppRefreshBus.notifier.addListener(_handleGlobalRefresh);
   }
 
   @override
   void dispose() {
+    AppRefreshBus.notifier.removeListener(_handleGlobalRefresh);
     for (final c in _noteControllers.values) {
       c.dispose();
     }
@@ -94,6 +97,11 @@ class _SkillsScreenState extends State<SkillsScreen> {
       t.cancel();
     }
     super.dispose();
+  }
+
+  void _handleGlobalRefresh() {
+    if (!mounted) return;
+    _fetchSkills();
   }
 
   int _todayDayIndex() {
@@ -172,6 +180,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
           _skills[idx] = _skills[idx].copyWith(note: note);
         });
       }
+      AppRefreshBus.bump();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -379,6 +388,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
         'note': '',
       });
 
+      AppRefreshBus.bump();
       await _fetchSkills();
     } catch (e) {
       if (!mounted) return;
@@ -401,6 +411,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       }).eq('id', skillId);
 
+      AppRefreshBus.bump();
       await _fetchSkills();
     } catch (e) {
       if (!mounted) return;
@@ -418,6 +429,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
       await Supabase.instance.client.from('skills').delete().eq('id', skillId);
       _noteControllers.remove(skillId)?.dispose();
       _saveDebounceTimers.remove(skillId)?.cancel();
+      AppRefreshBus.bump();
       await _fetchSkills();
     } catch (e) {
       if (!mounted) return;
@@ -449,13 +461,6 @@ class _SkillsScreenState extends State<SkillsScreen> {
           ),
         ),
         centerTitle: false,
-        actions: [
-          IconButton(
-            onPressed: _isLoading ? null : _fetchSkills,
-            icon: Icon(Icons.refresh, color: context.themeColors.textMuted),
-            tooltip: 'Refresh',
-          ),
-        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openSkillForm(),
@@ -467,21 +472,35 @@ class _SkillsScreenState extends State<SkillsScreen> {
           ? Center(child: CircularProgressIndicator(color: context.themeColors.gold))
           : _loadError != null
               ? _buildErrorState()
-              : _skills.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(20).copyWith(bottom: 100),
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: _skills.length,
-                      itemBuilder: (context, index) {
-                        final skill = _skills[index];
-                        final isToday = skill.dayIndex == todayIndex;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: _buildSkillCard(skill, index, isToday),
-                        );
-                      },
-                    ),
+              : RefreshIndicator(
+                  onRefresh: _fetchSkills,
+                  child: _skills.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(
+                            parent: BouncingScrollPhysics(),
+                          ),
+                          children: [
+                            const SizedBox(height: 120),
+                            _buildEmptyState(),
+                            const SizedBox(height: 120),
+                          ],
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(20).copyWith(bottom: 100),
+                          physics: const AlwaysScrollableScrollPhysics(
+                            parent: BouncingScrollPhysics(),
+                          ),
+                          itemCount: _skills.length,
+                          itemBuilder: (context, index) {
+                            final skill = _skills[index];
+                            final isToday = skill.dayIndex == todayIndex;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: _buildSkillCard(skill, index, isToday),
+                            );
+                          },
+                        ),
+                ),
     );
   }
 

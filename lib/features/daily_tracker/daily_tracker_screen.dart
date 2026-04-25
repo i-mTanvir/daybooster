@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/state/app_refresh_bus.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/glow_card.dart';
 
@@ -37,12 +38,19 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
     _todayDateStr = _formatDate(_today);
     _fetchData();
     _scheduleMidnightRefresh();
+    AppRefreshBus.notifier.addListener(_handleGlobalRefresh);
   }
 
   @override
   void dispose() {
+    AppRefreshBus.notifier.removeListener(_handleGlobalRefresh);
     _midnightTimer?.cancel();
     super.dispose();
+  }
+
+  void _handleGlobalRefresh() {
+    if (!mounted) return;
+    _fetchData();
   }
 
   int _getDayIndex(DateTime date) {
@@ -153,6 +161,7 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
       if (mounted) {
         setState(() => _logs[directiveId] = res);
       }
+      AppRefreshBus.bump();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -231,35 +240,45 @@ class _DailyTrackerScreenState extends State<DailyTrackerScreen> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh, color: colors.textMuted),
-            onPressed: _fetchData,
-            tooltip: 'Refresh',
-          ),
-        ],
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: colors.neonGreen))
           : _directives.isEmpty
-              ? _buildEmptyState(colors, dayName)
+              ? RefreshIndicator(
+                  onRefresh: _fetchData,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    children: [
+                      const SizedBox(height: 120),
+                      _buildEmptyState(colors, dayName),
+                      const SizedBox(height: 120),
+                    ],
+                  ),
+                )
               : Column(
                   children: [
                     _buildSummaryBar(colors),
                     Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(20).copyWith(bottom: 100),
-                        physics: const BouncingScrollPhysics(),
-                        itemCount: orderedDirectives.length,
-                        itemBuilder: (context, index) {
-                          final directive = orderedDirectives[index];
-                          final directiveId = directive['id'] as String;
-                          final log = _logs[directiveId];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: _buildDirectiveCard(directive, log, colors, index),
-                          );
-                        },
+                      child: RefreshIndicator(
+                        onRefresh: _fetchData,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(20).copyWith(bottom: 100),
+                          physics: const AlwaysScrollableScrollPhysics(
+                            parent: BouncingScrollPhysics(),
+                          ),
+                          itemCount: orderedDirectives.length,
+                          itemBuilder: (context, index) {
+                            final directive = orderedDirectives[index];
+                            final directiveId = directive['id'] as String;
+                            final log = _logs[directiveId];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: _buildDirectiveCard(directive, log, colors, index),
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ],

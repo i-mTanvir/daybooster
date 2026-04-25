@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/state/app_refresh_bus.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glow_card.dart';
 
@@ -209,6 +210,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         payload['user_id'] = user.id;
         await Supabase.instance.client.from('directives').insert(payload);
       }
+      AppRefreshBus.bump();
 
       HapticFeedback.heavyImpact();
       if (mounted) {

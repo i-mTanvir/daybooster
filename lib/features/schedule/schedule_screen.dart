@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/state/app_refresh_bus.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/glow_card.dart';
 import 'widgets/add_task_sheet.dart';
@@ -56,6 +57,18 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   @override
   void initState() {
     super.initState();
+    _fetchDirectives();
+    AppRefreshBus.notifier.addListener(_handleGlobalRefresh);
+  }
+
+  @override
+  void dispose() {
+    AppRefreshBus.notifier.removeListener(_handleGlobalRefresh);
+    super.dispose();
+  }
+
+  void _handleGlobalRefresh() {
+    if (!mounted) return;
     _fetchDirectives();
   }
 
@@ -275,6 +288,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         backgroundColor: context.themeColors.neonGreen,
       ),
     );
+    AppRefreshBus.bump();
     _fetchDirectives();
   }
 
@@ -360,13 +374,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           ),
         ),
         centerTitle: false,
-        actions: [
-          IconButton(
-            onPressed: _fetchDirectives,
-            icon: Icon(Icons.refresh, color: context.themeColors.electricBlue, size: 20),
-            tooltip: 'Refresh Protocol',
-          )
-        ],
       ),
       body: Column(
         children: [
@@ -384,24 +391,41 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         ..sort((a, b) => a.time.compareTo(b.time));
 
                       if (visibleBlocks.isEmpty) {
-                        return Center(
-                          child: Text(
-                            'NO PROTOCOLS FOR THIS DAY',
-                            style: GoogleFonts.orbitron(
-                              color: context.themeColors.textMuted,
-                              letterSpacing: 2,
+                        return RefreshIndicator(
+                          onRefresh: _fetchDirectives,
+                          child: ListView(
+                            physics: const AlwaysScrollableScrollPhysics(
+                              parent: BouncingScrollPhysics(),
                             ),
+                            children: [
+                              const SizedBox(height: 180),
+                              Center(
+                                child: Text(
+                                  'NO PROTOCOLS FOR THIS DAY',
+                                  style: GoogleFonts.orbitron(
+                                    color: context.themeColors.textMuted,
+                                    letterSpacing: 2,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 120),
+                            ],
                           ),
                         );
                       }
 
-                      return ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16).copyWith(bottom: 100),
-                        physics: const BouncingScrollPhysics(),
-                        itemCount: visibleBlocks.length,
-                        itemBuilder: (context, index) {
-                          return _buildTimelineItem(visibleBlocks[index], index);
-                        },
+                      return RefreshIndicator(
+                        onRefresh: _fetchDirectives,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16).copyWith(bottom: 100),
+                          physics: const AlwaysScrollableScrollPhysics(
+                            parent: BouncingScrollPhysics(),
+                          ),
+                          itemCount: visibleBlocks.length,
+                          itemBuilder: (context, index) {
+                            return _buildTimelineItem(visibleBlocks[index], index);
+                          },
+                        ),
                       );
                     },
                   ),
