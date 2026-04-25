@@ -54,7 +54,7 @@ class _SignupScreenState extends State<SignupScreen> {
     HapticFeedback.lightImpact();
     setState(() => _isLoading = true);
     try {
-      await Supabase.instance.client.auth.signUp(
+      final authResponse = await Supabase.instance.client.auth.signUp(
         email: email,
         password: password,
         data: {
@@ -63,6 +63,16 @@ class _SignupScreenState extends State<SignupScreen> {
           'phone_number': phone,
         },
       );
+
+      final signedUser = authResponse.user;
+      if (signedUser != null) {
+        await Supabase.instance.client.from('profiles').upsert({
+          'id': signedUser.id,
+          'architect_name': name,
+          'age': int.tryParse(age),
+          'phone_number': phone,
+        });
+      }
       // Clear the stack so AppRouter can render MainShell
       if (mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);

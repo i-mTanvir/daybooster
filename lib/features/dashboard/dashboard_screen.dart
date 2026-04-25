@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:confetti/confetti.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/models/task_entry.dart';
 import '../../core/widgets/painters.dart';
@@ -33,6 +34,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   final ConfettiController _confettiController = ConfettiController(duration: const Duration(seconds: 3));
 
   late DayData _todayData;
+  bool _isLoading = true;
+  String? _loadError;
+  List<_PrayerStatusItem> _prayerItems = [];
 
   final List<String> _motivationalQuotes = [
     "You are not building a routine. You are building a legacy.",
@@ -49,8 +53,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void initState() {
     super.initState();
-    _todayData = widget.todayData ??
-        DayData(date: DateTime.now(), tasks: buildDefaultTasks());
+    _todayData = widget.todayData ?? DayData(date: DateTime.now(), tasks: []);
     _quote = _motivationalQuotes[math.Random().nextInt(_motivationalQuotes.length)];
 
     _gridController = AnimationController(
@@ -68,10 +71,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
     
-    // Check if initial score is legendary
-    if (_todayData.dayScore >= 130) {
-      _confettiController.play();
-    }
+    _loadTodayData();
   }
 
   @override
@@ -83,12 +83,148 @@ class _DashboardScreenState extends State<DashboardScreen>
     super.dispose();
   }
 
+  int _getDayIndex(DateTime date) {
+    const dartToApp = {6: 0, 7: 1, 1: 2, 2: 3, 3: 4, 4: 5, 5: 6};
+    return dartToApp[date.weekday] ?? 0;
+  }
+
+  String _formatDate(DateTime date) =>
+      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+  bool _looksLikePrayer(Map<String, dynamic> directive) {
+    final name = (directive['name'] as String? ?? '').toLowerCase();
+    final emoji = (directive['category_emoji'] as String? ?? '').trim();
+    const prayerKeywords = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha', 'prayer', 'namaz'];
+    return emoji == '🕌' || prayerKeywords.any(name.contains);
+  }
+
+  Future<void> _loadTodayData() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
+
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        throw Exception('No active session found.');
+      }
+
+      final now = DateTime.now();
+      final dayIndex = _getDayIndex(now);
+      final todayDate = _formatDate(now);
+
+      final directivesResponse = await Supabase.instance.client
+          .from('directives')
+          .select()
+          .eq('user_id', user.id);
+      final allDirectives = (directivesResponse as List<dynamic>).cast<Map<String, dynamic>>();
+      final todaysDirectives = allDirectives.where((directive) {
+        final days = List<int>.from((directive['active_days'] as List<dynamic>?) ?? []);
+        return days.contains(dayIndex);
+      }).toList()
+        ..sort((a, b) {
+          final startA = (a['start_time'] as String? ?? '00:00');
+          final startB = (b['start_time'] as String? ?? '00:00');
+          return startA.compareTo(startB);
+        });
+
+      final directiveIds = todaysDirectives
+          .map((directive) => directive['id']?.toString())
+          .whereType<String>()
+          .toList();
+      final Map<String, Map<String, dynamic>> logsByDirective = {};
+
+      if (directiveIds.isNotEmpty) {
+        final logsResponse = await Supabase.instance.client
+            .from('daily_logs')
+            .select()
+            .eq('log_date', todayDate)
+            .inFilter('directive_id', directiveIds);
+
+        for (final row in (logsResponse as List<dynamic>).cast<Map<String, dynamic>>()) {
+          final key = row['directive_id']?.toString();
+          if (key != null) {
+            logsByDirective[key] = row;
+          }
+        }
+      }
+
+      final List<TaskEntry> tasks = [];
+      final List<_PrayerStatusItem> prayerItems = [];
+
+      for (final directive in todaysDirectives) {
+        final directiveId = directive['id']?.toString() ?? '';
+        if (directiveId.isEmpty) continue;
+
+        final trackingType = (directive['tracking_type'] as String? ?? 'binary').toLowerCase();
+        final log = logsByDirective[directiveId];
+        final progressValue = (log?['progress_value'] as num?)?.toDouble();
+        final isDone = log?['is_done'] as bool?;
+        final targetMetric = (directive['target_metric'] as num?)?.toInt();
+        final durationMinutes = (directive['duration_minutes'] as int?) ?? 0;
+
+        final taskType = switch (trackingType) {
+          'progress' => TaskType.minutes,
+          'inverse' => TaskType.inverse,
+          _ => TaskType.binary,
+        };
+
+        tasks.add(
+          TaskEntry(
+            id: directiveId,
+            name: directive['name'] as String? ?? 'Untitled',
+            emoji: directive['category_emoji'] as String? ?? '⚡',
+            type: taskType,
+            targetMinutes: taskType == TaskType.binary
+                ? null
+                : (targetMetric != null && targetMetric > 0 ? targetMetric : durationMinutes),
+            actualMinutes: taskType == TaskType.binary ? null : progressValue,
+            done: taskType == TaskType.binary ? isDone : null,
+          ),
+        );
+
+        if (_looksLikePrayer(directive)) {
+          final timeRaw = directive['start_time'] as String?;
+          final timeLabel = (timeRaw != null && timeRaw.length >= 5) ? timeRaw.substring(0, 5) : '--:--';
+          prayerItems.add(
+            _PrayerStatusItem(
+              name: directive['name'] as String? ?? 'Prayer',
+              time: timeLabel,
+              done: isDone == true,
+            ),
+          );
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _todayData = DayData(date: now, tasks: tasks);
+        _prayerItems = prayerItems;
+        _isLoading = false;
+      });
+
+      if (_todayData.dayScore >= 130) {
+        _confettiController.play();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _loadError = e.toString();
+        _todayData = DayData(date: DateTime.now(), tasks: []);
+        _prayerItems = [];
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final score = _todayData.dayScore;
     final scoreColor = AppColors.getPerformanceColor(score, context.themeColors);
     final scoreLabel = AppColors.getPerformanceLabel(score);
-    final now = DateTime.now();
+    final now = _todayData.date;
     final dayName = DateFormat('EEEE').format(now);
     final dateStr = DateFormat('d MMM yyyy').format(now);
     final completedTasks = _todayData.tasks.where((t) => t.percentage >= 100).length;
@@ -158,6 +294,14 @@ class _DashboardScreenState extends State<DashboardScreen>
               ],
             ),
           ),
+
+          if (_isLoading)
+            Container(
+              color: context.themeColors.bg.withValues(alpha: 0.65),
+              child: Center(
+                child: CircularProgressIndicator(color: context.themeColors.electricBlue),
+              ),
+            ),
 
           // Particle Burst (Confetti) for Legendary Score
           Align(
@@ -233,6 +377,11 @@ class _DashboardScreenState extends State<DashboardScreen>
 
               return Row(
                 children: [
+                  IconButton(
+                    onPressed: _isLoading ? null : _loadTodayData,
+                    icon: Icon(Icons.refresh_rounded, color: context.themeColors.textPrimary, size: 22),
+                    tooltip: 'Refresh Dashboard',
+                  ),
                   IconButton(
                     onPressed: () {
                       HapticFeedback.lightImpact();
@@ -325,6 +474,16 @@ class _DashboardScreenState extends State<DashboardScreen>
               ],
             ),
           ),
+          if (_loadError != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Data sync issue: $_loadError',
+              style: GoogleFonts.shareTechMono(
+                color: context.themeColors.neonRed,
+                fontSize: 10,
+              ),
+            ),
+          ],
         ],
       ),
     ).animate().fadeIn(delay: 200.ms, duration: 700.ms).slideX(begin: -0.2, end: 0);
@@ -457,12 +616,11 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Widget _buildQuickStats(int completed, int total) {
-    final prayersDone = _todayData.tasks
-        .where((t) => ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].contains(t.id) && t.done == true)
-        .length;
+    final prayersDone = _prayerItems.where((p) => p.done).length;
+    final prayersTotal = _prayerItems.length;
 
     final skillMinutes = _todayData.tasks
-        .where((t) => ['skill1', 'skill2', 'skill3', 'project'].contains(t.id))
+        .where((t) => t.type != TaskType.binary)
         .fold(0.0, (sum, t) => sum + (t.actualMinutes ?? 0));
 
     return Padding(
@@ -483,9 +641,11 @@ class _DashboardScreenState extends State<DashboardScreen>
             child: _buildStatCard(
               icon: Icons.mosque_outlined,
               iconColor: context.themeColors.gold,
-              value: '$prayersDone/5',
+              value: '$prayersDone/$prayersTotal',
               label: 'PRAYERS',
-              glowColor: prayersDone == 5 ? context.themeColors.gold : context.themeColors.textMuted,
+              glowColor: prayersTotal > 0 && prayersDone == prayersTotal
+                  ? context.themeColors.gold
+                  : context.themeColors.textMuted,
             ),
           ),
           const SizedBox(width: 12),
@@ -544,15 +704,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Widget _buildPrayerStatus() {
-    final prayers = [
-      {'id': 'fajr', 'name': 'Fajr', 'time': '05:35'},
-      {'id': 'dhuhr', 'name': 'Dhuhr', 'time': '12:15'},
-      {'id': 'asr', 'name': 'Asr', 'time': '15:00'},
-      {'id': 'maghrib', 'name': 'Maghrib', 'time': '18:15'},
-      {'id': 'isha', 'name': 'Isha', 'time': '19:15'},
-    ];
-
-    final allDone = _todayData.allPrayersDone;
+    final allDone = _prayerItems.isNotEmpty && _prayerItems.every((item) => item.done);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -594,23 +746,31 @@ class _DashboardScreenState extends State<DashboardScreen>
               ],
             ),
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: prayers.map((p) {
-                final task = _todayData.tasks.firstWhere(
-                  (t) => t.id == p['id'],
-                  orElse: () => TaskEntry(
-                    id: '', name: '', emoji: '', type: TaskType.binary, done: false,
-                  ),
-                );
-                final done = task.done == true;
-                return _buildPrayerDot(
-                  name: p['name']!,
-                  time: p['time']!,
-                  done: done,
-                );
-              }).toList(),
-            ),
+            if (_prayerItems.isEmpty)
+              Text(
+                'No prayer directives scheduled for today.',
+                style: GoogleFonts.shareTechMono(
+                  color: context.themeColors.textMuted,
+                  fontSize: 10,
+                ),
+              )
+            else
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: _prayerItems.map((prayer) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: _buildPrayerDot(
+                        name: prayer.name,
+                        time: prayer.time,
+                        done: prayer.done,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
           ],
         ),
       ).animate(target: allDone ? 1 : 0).shimmer(duration: 2000.ms, color: context.themeColors.gold.withValues(alpha: 0.3)),
@@ -699,11 +859,20 @@ class _DashboardScreenState extends State<DashboardScreen>
               ],
             ),
             const SizedBox(height: 16),
-            ...topTasks.asMap().entries.map((entry) {
-              final i = entry.key;
-              final task = entry.value;
-              return _buildTaskRow(task, i);
-            }),
+            if (topTasks.isEmpty)
+              Text(
+                'No directives planned for today.',
+                style: GoogleFonts.shareTechMono(
+                  color: context.themeColors.textMuted,
+                  fontSize: 11,
+                ),
+              )
+            else
+              ...topTasks.asMap().entries.map((entry) {
+                final i = entry.key;
+                final task = entry.value;
+                return _buildTaskRow(task, i);
+              }),
           ],
         ),
       ),
@@ -765,5 +934,17 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
     ).animate(delay: Duration(milliseconds: 900 + index * 80)).fadeIn(duration: 400.ms).slideX(begin: 0.1, end: 0);
   }
+}
+
+class _PrayerStatusItem {
+  final String name;
+  final String time;
+  final bool done;
+
+  const _PrayerStatusItem({
+    required this.name,
+    required this.time,
+    required this.done,
+  });
 }
 

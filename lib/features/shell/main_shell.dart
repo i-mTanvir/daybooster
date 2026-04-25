@@ -19,6 +19,7 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
   int _currentIndex = 0;
   late AnimationController _navController;
+  String _architectName = 'Architect';
 
   final List<_NavItem> _navItems = const [
     _NavItem(icon: Icons.grid_view_rounded, label: 'DASHBOARD'),
@@ -35,6 +36,7 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 300),
     )..forward();
+    _loadArchitectName();
   }
 
   @override
@@ -49,15 +51,40 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
     setState(() => _currentIndex = index);
   }
 
+  Future<void> _loadArchitectName() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+
+      final profile = await Supabase.instance.client
+          .from('profiles')
+          .select('architect_name')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      final profileName = profile?['architect_name'] as String?;
+      final metadataName = user.userMetadata?['name'] as String?;
+      final resolvedName = (profileName?.trim().isNotEmpty ?? false)
+          ? profileName!.trim()
+          : ((metadataName?.trim().isNotEmpty ?? false) ? metadataName!.trim() : 'Architect');
+
+      if (mounted) {
+        setState(() => _architectName = resolvedName);
+      }
+    } catch (_) {
+      final user = Supabase.instance.client.auth.currentUser;
+      final fallback = user?.userMetadata?['name'] as String?;
+      if (mounted && fallback != null && fallback.trim().isNotEmpty) {
+        setState(() => _architectName = fallback.trim());
+      }
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
-    // Fetch architect name from Supabase session
-    final user = Supabase.instance.client.auth.currentUser;
-    final name = user?.userMetadata?['name'] ?? 'Architect';
-
     final screens = [
-      DashboardScreen(architectName: name),
+      DashboardScreen(architectName: _architectName),
       const DailyTrackerScreen(),
       const ScheduleScreen(),
       const WeeklyReportScreen(),

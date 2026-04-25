@@ -70,6 +70,9 @@ class _AppRouterState extends State<AppRouter> {
     Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       if (!mounted) return;
       final session = data.session;
+      if (session?.user != null) {
+        _ensureProfileExists(session!.user);
+      }
       setState(() {
         _isAuthenticated = session != null;
         _loading = false;
@@ -79,10 +82,31 @@ class _AppRouterState extends State<AppRouter> {
 
   void _checkAuth() {
     final session = Supabase.instance.client.auth.currentSession;
+    if (session?.user != null) {
+      _ensureProfileExists(session!.user);
+    }
     setState(() {
       _isAuthenticated = session != null;
       _loading = false;
     });
+  }
+
+  Future<void> _ensureProfileExists(User user) async {
+    try {
+      final metadata = user.userMetadata ?? {};
+      final name = (metadata['name'] as String?)?.trim();
+      final age = (metadata['age'] as num?)?.toInt();
+      final phoneNumber = (metadata['phone_number'] as String?)?.trim();
+
+      await Supabase.instance.client.from('profiles').upsert({
+        'id': user.id,
+        'architect_name': (name != null && name.isNotEmpty) ? name : null,
+        'age': age,
+        'phone_number': (phoneNumber != null && phoneNumber.isNotEmpty) ? phoneNumber : null,
+      });
+    } catch (_) {
+      // Keep auth flow non-blocking if profile sync fails.
+    }
   }
 
   @override
